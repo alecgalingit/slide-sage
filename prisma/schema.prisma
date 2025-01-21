@@ -28,6 +28,7 @@ model Password {
 model Lecture {
   id          String   @id @default(cuid())
   title       String
+  numSlides   Int?
   description String?
   
   createdAt   DateTime @default(now())
@@ -45,16 +46,15 @@ model Lecture {
 model Slide {
   id          String   @id @default(cuid())
   slideNumber Int    
-  s3Key       String  
+  base64      String       
   
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  status      UploadStatus @default(PROCESSING)
   
   lecture      Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
   lectureId    String
+  userId       String     @map("lecture_userId")
 
   @@unique([lectureId, slideNumber]) 
   @@index([lectureId, slideNumber])
