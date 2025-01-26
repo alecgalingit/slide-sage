@@ -28,12 +28,13 @@ model Password {
 model Lecture {
   id          String   @id @default(cuid())
   title       String
+  numSlides   Int?
   description String?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  status      UploadStatus @default(PROCESSING)
+  status      Status @default(PROCESSING)
   
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
@@ -43,24 +44,24 @@ model Lecture {
 }
 
 model Slide {
-  id          String   @id @default(cuid())
-  slideNumber Int    
-  s3Key       String  
+  id             String   @id @default(cuid())
+  slideNumber    Int    
+  base64         String
+  generateStatus Status?
+  summary        String?       
   
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  status      UploadStatus @default(PROCESSING)
-  
-  lecture      Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
-  lectureId    String
+  lecture        Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  lectureId      String
+  userId         String     @map("lecture_userId")
 
   @@unique([lectureId, slideNumber]) 
   @@index([lectureId, slideNumber])
 }
 
-enum UploadStatus {
+enum Status {
   PROCESSING
   READY    
   FAILED    

@@ -3,11 +3,11 @@ import type { MetaFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { Link } from "@remix-run/react";
 import { getUserId } from "~/session.server";
 import { redirect, json } from "@remix-run/node";
-import { ROUTES } from "~/routes";
+import { dashboardRoute } from "~/routes";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const userId = await getUserId(request);
-  if (userId) return redirect(ROUTES.DASHBOARD);
+  if (userId) return redirect(dashboardRoute);
   return json({});
 };
 

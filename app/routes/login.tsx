@@ -9,11 +9,11 @@ import { verifyLogin } from "~/models/user.server";
 import { validateEmail, safeRedirect } from "~/utils";
 import { Form, Link, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect, useRef } from "react";
-import { ROUTES } from "~/routes";
+import { dashboardRoute } from "~/routes";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const userId = await getUserId(request);
-  if (userId) return redirect(ROUTES.DASHBOARD);
+  if (userId) return redirect(dashboardRoute);
   return json({});
 };
 
@@ -66,7 +66,7 @@ export const meta: MetaFunction = () => [{ title: "Login" }];
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || ROUTES.DASHBOARD;
+  const redirectTo = searchParams.get("redirectTo") || dashboardRoute;
   const actionData = useActionData<typeof action>();
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);

@@ -3,11 +3,14 @@ import {
   json,
   unstable_parseMultipartFormData,
   unstable_createMemoryUploadHandler,
+  redirect,
 } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { createLecture } from "~/models/lecture.server";
 import { requireUserId } from "~/session.server";
-import { queue } from "~/queues/extractor.server";
+//import { queue } from "~/queues/extractorqueue.server";
+import { slideFromLectureRoute } from "~/routes";
+import { extractLecture } from "~/utils/extractor.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
@@ -39,13 +42,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const arrayBuffer = await pdfFile.arrayBuffer();
   const base64pdf = Buffer.from(arrayBuffer).toString("base64");
 
-  queue.add("Extract images from slide and upload to cloud", {
-    lectureId: lecture.id,
-    userId: userId,
-    pdfBuffer: base64pdf,
-  });
+  // queue.add("Extract images from slide and upload to cloud", {
+  //   lectureId: lecture.id,
+  //   userId: userId,
+  //   pdfBuffer: base64pdf,
+  // });
+  await extractLecture({ lectureId: lecture.id, userId, pdfBuffer: base64pdf });
 
-  return json({ message: "Succeeded with adding to queue" });
+  return redirect(slideFromLectureRoute(lecture.id, 1));
 };
 
 export default function PDFUploadPage() {
