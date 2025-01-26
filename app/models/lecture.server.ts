@@ -1,10 +1,11 @@
-import { Lecture, Slide, UploadStatus } from "@prisma/client";
+import { Lecture, Slide, Status } from "@prisma/client";
 import type { User } from "./user.server";
 
 import { prisma } from "~/db.server";
 
-export type { Lecture, Slide, UploadStatus } from "@prisma/client";
-export { UploadStatus as UploadStatusEnum } from "@prisma/client";
+export type { Lecture, Slide, Status } from "@prisma/client";
+// export status with normal export as well so can access values
+export { Status as UploadStatusEnum } from "@prisma/client";
 
 export async function getLectureById(id: Lecture["id"]) {
   return prisma.lecture.findUnique({ where: { id } });
@@ -124,7 +125,7 @@ export async function createLecture(
 
 export async function updateLectureStatus(
   lectureId: Lecture["id"],
-  newStatus: UploadStatus
+  newStatus: Status
 ) {
   return prisma.lecture.update({
     where: { id: lectureId },
