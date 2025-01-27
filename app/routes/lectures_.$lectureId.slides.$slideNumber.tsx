@@ -3,7 +3,11 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, Link, useParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
-import { getSlideFromLecture, getLectureById } from "~/models/lecture.server";
+import {
+  getSlideFromLecture,
+  getLectureById,
+  StatusEnum,
+} from "~/models/lecture.server";
 import { slideFromLectureRoute } from "~/routes";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
@@ -44,21 +48,30 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     slideId: slide.id,
     slideNumber,
     numSlides,
+    generateStatus: slide.generateStatus,
     content: slide.summary,
+    StatusOptions: StatusEnum, // loaded since StatusEnum is defined in a server only script, and client uses below
   });
 };
 
 export default function SlidePage() {
-  const { imageData, slideId, slideNumber, numSlides, content } =
-    useLoaderData<typeof loader>();
+  const {
+    imageData,
+    slideId,
+    slideNumber,
+    numSlides,
+    generateStatus,
+    content,
+    StatusOptions,
+  } = useLoaderData<typeof loader>();
   const { lectureId } = useParams();
   const [displayContent, setDisplayContent] = useState<string>(content || "");
 
   useEffect(() => {
     console.log("something happening");
     let sse: EventSource | null = null;
-
-    if (!content) {
+    console.log(`Generate status is ${generateStatus}`);
+    if (!generateStatus) {
       setDisplayContent("");
       sse = new EventSource(`/completion?slideId=${slideId}`);
 
@@ -72,18 +85,25 @@ export default function SlidePage() {
           sse.close();
         }
       });
+    } else if (generateStatus === StatusOptions.PROCESSING) {
+      setDisplayContent("Processing...");
+    } else if (generateStatus === StatusOptions.READY) {
+      if (content) {
+        setDisplayContent(content);
+      } else {
+        setDisplayContent("Generation Failed");
+      }
     } else {
-      setDisplayContent(content);
+      setDisplayContent("Generation Failed");
     }
 
-    // Cleanup function
     return () => {
       if (sse) {
         console.log("Closing SSE connection");
         sse.close();
       }
     };
-  }, [content, slideId]);
+  }, [content, generateStatus, slideId, StatusOptions]);
 
   return (
     <div className="h-screen p-6 flex flex-col">

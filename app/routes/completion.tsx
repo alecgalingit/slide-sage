@@ -56,6 +56,7 @@ class ResponseHandler {
   async saveToDatabase() {
     try {
       updateSlideSummary(this.slideId, this.completeResponse);
+      updateSlideGenerateStatus(this.slideId, StatusEnum.READY);
     } catch (error) {
       console.error("Failed to save to database:", error);
       updateSlideGenerateStatus(this.slideId, StatusEnum.FAILED);
@@ -82,6 +83,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return function clear() {};
     });
   }
+
+  updateSlideGenerateStatus(slideId, StatusEnum.PROCESSING);
 
   const messages: OpenAI.Chat.ChatCompletionUserMessageParam[] = [
     {
