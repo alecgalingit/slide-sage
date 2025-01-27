@@ -5,9 +5,12 @@ import { useLoaderData, Link, useParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { getSlideFromLecture, getLectureById } from "~/models/lecture.server";
 import { slideFromLectureRoute } from "~/routes";
+import { useEffect, useState } from "react";
+import Markdown from "react-markdown";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  console.log("Request headers:", Object.fromEntries(request.headers));
+  //console.log("Request headers:", Object.fromEntries(request.headers));
+  console.log("something happening in loader");
   const userId = await requireUserId(request);
   invariant(params.lectureId, "lectureId not found");
   invariant(params.slideNumber, "slideNumber not found");
@@ -35,39 +38,100 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
   console.log(`FOUND SLIDE!!!!!`);
   console.log(slide);
-  const base64String = slide.base64;
   console.log("Success!");
-  return json({ imageData: base64String, slideNumber, numSlides });
+  return json({
+    imageData: slide.base64,
+    slideId: slide.id,
+    slideNumber,
+    numSlides,
+    content: slide.summary,
+  });
 };
 
 export default function SlidePage() {
-  const { imageData, slideNumber, numSlides } = useLoaderData<typeof loader>();
+  const { imageData, slideId, slideNumber, numSlides, content } =
+    useLoaderData<typeof loader>();
   const { lectureId } = useParams();
+  const [displayContent, setDisplayContent] = useState<string>(content || "");
+
+  useEffect(() => {
+    console.log("something happening");
+    let sse: EventSource | null = null;
+
+    if (!content) {
+      setDisplayContent("");
+      sse = new EventSource(`/completion?slideId=${slideId}`);
+
+      sse.addEventListener("message", (event) => {
+        setDisplayContent((prevResults) => prevResults + event.data);
+      });
+
+      sse.addEventListener("error", (event) => {
+        console.log("error: ", event);
+        if (sse) {
+          sse.close();
+        }
+      });
+    } else {
+      setDisplayContent(content);
+    }
+
+    // Cleanup function
+    return () => {
+      if (sse) {
+        console.log("Closing SSE connection");
+        sse.close();
+      }
+    };
+  }, [content, slideId]);
 
   return (
-    <div>
-      <h1>Slide!</h1>
-      <img
-        src={`data:image/png;base64, ${imageData}`}
-        alt={`Slide ${slideNumber}`}
-      />
-      <div style={{ marginTop: "20px" }}>
-        {/* Slide progress display */}
-        <p
-          style={{ marginBottom: "10px", fontSize: "16px", fontWeight: "bold" }}
-        >
-          Slide {slideNumber} of {numSlides}
-        </p>
-        <div>
+    <div className="h-screen p-6 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col md:flex-row items-center justify-center overflow-hidden">
+        {/* Image - centered */}
+        <div className="w-full md:w-1/2 flex items-center">
+          <img
+            src={`data:image/png;base64, ${imageData}`}
+            alt={`Slide ${slideNumber}`}
+            className="w-full h-auto rounded-lg"
+          />
+        </div>
+
+        {/* Content - grows from top, scrolls when needed */}
+        <div className="w-full md:w-1/2 h-full flex flex-col">
+          <div className="flex-1 bg-gray-50 rounded-lg overflow-y-auto">
+            <div className="p-6">
+              {displayContent ? (
+                <Markdown>{displayContent}</Markdown>
+              ) : (
+                <p className="text-gray-500">Loading slide content...</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation - stays at bottom */}
+      <div className="flex mt-6">
+        <div className="w-1/2 flex items-center justify-center">
+          <p className="text-lg font-medium">
+            Slide {slideNumber} of {numSlides}
+          </p>
+        </div>
+        <div className="w-1/2 flex items-center justify-center space-x-4">
           {slideNumber > 1 && (
             <Link to={slideFromLectureRoute(lectureId!, slideNumber - 1)}>
-              <button>Previous</button>
+              <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Previous
+              </button>
             </Link>
           )}
-
           {slideNumber < numSlides && (
             <Link to={slideFromLectureRoute(lectureId!, slideNumber + 1)}>
-              <button>Next</button>
+              <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Next
+              </button>
             </Link>
           )}
         </div>

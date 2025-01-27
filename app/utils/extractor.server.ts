@@ -4,7 +4,7 @@ import { fromBuffer } from "pdf2pic";
 import {
   createSlide,
   deleteSlidesByLectureId,
-  UploadStatusEnum,
+  StatusEnum,
   updateLectureStatus,
   updateNumSlides,
 } from "~/models/lecture.server";
@@ -42,12 +42,12 @@ export const extractLecture = async ({
 
       await createSlide(lectureId, slideNumber, page.base64);
     }
-    updateLectureStatus(lectureId, UploadStatusEnum.READY);
+    updateLectureStatus(lectureId, StatusEnum.READY);
   } catch (error) {
     console.error("Error processing PDF:", error);
 
     deleteSlidesByLectureId(lectureId);
-    updateLectureStatus(lectureId, UploadStatusEnum.FAILED);
+    updateLectureStatus(lectureId, StatusEnum.FAILED);
   }
 
   console.log(`Finished for lecture ${lectureId} for user ${userId}`);

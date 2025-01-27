@@ -5,7 +5,7 @@ import { prisma } from "~/db.server";
 
 export type { Lecture, Slide, Status } from "@prisma/client";
 // export status with normal export as well so can access values
-export { Status as UploadStatusEnum } from "@prisma/client";
+export { Status as StatusEnum } from "@prisma/client";
 
 export async function getLectureById(id: Lecture["id"]) {
   return prisma.lecture.findUnique({ where: { id } });
@@ -109,6 +109,47 @@ export async function updateNumSlides(
   }
 }
 
+export async function updateSlideGenerateStatus(
+  slideId: Slide["id"],
+  status: Status
+) {
+  try {
+    await prisma.slide.update({
+      where: {
+        id: slideId,
+      },
+      data: {
+        generateStatus: status,
+      },
+    });
+    console.log(`Updated status for slideId: ${slideId} to ${status}`);
+  } catch (error) {
+    console.error("Error updating slide status:", error);
+    throw new Error("Failed to update slide status. Please try again.");
+  }
+}
+
+export async function updateSlideSummary(
+  slideId: Slide["id"],
+  summary: Slide["summary"]
+) {
+  try {
+    await prisma.slide.update({
+      where: {
+        id: slideId,
+      },
+      data: {
+        summary,
+        generateStatus: Status.READY,
+      },
+    });
+    console.log(`Updated summary for slideId: ${slideId}`);
+  } catch (error) {
+    console.error("Error updating slide summary:", error);
+    throw new Error("Failed to update slide summary. Please try again.");
+  }
+}
+
 export async function createLecture(
   userId: User["id"],
   title: string,
@@ -131,4 +172,22 @@ export async function updateLectureStatus(
     where: { id: lectureId },
     data: { status: newStatus },
   });
+}
+
+export async function getBase64FromSlide(slideId: Slide["id"]) {
+  try {
+    const slide = await prisma.slide.findUnique({
+      where: { id: slideId },
+      select: { base64: true },
+    });
+
+    if (!slide) {
+      throw new Error(`Slide with ID ${slideId} not found.`);
+    }
+
+    return slide.base64;
+  } catch (error) {
+    console.error("Error retrieving base64 from slide:", error);
+    throw error;
+  }
 }
