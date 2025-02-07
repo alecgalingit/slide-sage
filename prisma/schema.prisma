@@ -48,7 +48,7 @@ model Slide {
   slideNumber    Int    
   base64         String
   generateStatus Status?
-  summary        String?       
+  content        String[] @default([])     
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

@@ -8,11 +8,28 @@ export type { Lecture, Slide, Status } from "@prisma/client";
 export { Status as StatusEnum } from "@prisma/client";
 
 export async function getLectureById(id: Lecture["id"]) {
-  return prisma.lecture.findUnique({ where: { id } });
+  return await prisma.lecture.findUnique({ where: { id } });
 }
 
-export async function getSlideById(id: Slide["id"], userId: User["id"]) {
-  return prisma.slide.findUnique({ where: { id, userId } });
+export async function getSlideInfo(slideId: Slide["id"]) {
+  const slide = await prisma.slide.findUnique({
+    where: {
+      id: slideId,
+    },
+    select: {
+      lectureId: true,
+      slideNumber: true,
+    },
+  });
+
+  if (!slide) {
+    throw new Response("Slide not found", { status: 404 });
+  }
+
+  return {
+    lectureId: slide.lectureId,
+    slideNumber: slide.slideNumber,
+  };
 }
 
 export async function createSlide(
@@ -59,13 +76,13 @@ export async function createSlide(
 export async function getSlideFromLecture({
   lectureId,
   slideNumber,
-  userId,
-}: Pick<Slide, "lectureId" | "slideNumber" | "userId">) {
-  return prisma.slide.findFirst({
+}: Pick<Slide, "lectureId" | "slideNumber">) {
+  return prisma.slide.findUnique({
     where: {
-      lectureId,
-      slideNumber: slideNumber,
-      userId,
+      lectureId_slideNumber: {
+        lectureId,
+        slideNumber,
+      },
     },
   });
 }
@@ -190,4 +207,19 @@ export async function getBase64FromSlide(slideId: Slide["id"]) {
     console.error("Error retrieving base64 from slide:", error);
     throw error;
   }
+}
+
+export async function getContextSlides(
+  lectureId: string,
+  currentSlideNumber: number
+) {
+  return await prisma.slide.findMany({
+    where: {
+      lectureId,
+      slideNumber: { lt: currentSlideNumber },
+    },
+    orderBy: { slideNumber: "desc" },
+    take: 5,
+    select: { summary: true },
+  });
 }

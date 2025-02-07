@@ -10,18 +10,18 @@ import {
 } from "~/models/lecture.server";
 import { slideFromLectureRoute } from "~/routes";
 import { useEffect, useState } from "react";
-import Markdown from "react-markdown";
+import { RenderedMarkdown } from "~/components/markdownDisplayer";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  //console.log("Request headers:", Object.fromEntries(request.headers));
-  console.log("something happening in loader");
   const userId = await requireUserId(request);
   invariant(params.lectureId, "lectureId not found");
   invariant(params.slideNumber, "slideNumber not found");
 
   const lecture = await getLectureById(params.lectureId);
-  if (!lecture) {
-    throw new Response("Lecture not found", { status: 404 });
+  if (!lecture || userId !== lecture.userId) {
+    throw new Response("Lecture not found", {
+      status: 404,
+    });
   }
 
   if (!lecture.numSlides) {
@@ -34,19 +34,15 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const slide = await getSlideFromLecture({
     lectureId: params.lectureId,
     slideNumber,
-    userId,
   });
 
   if (!slide) {
     throw new Response("Slide not Found", { status: 404 });
   }
-  console.log(`FOUND SLIDE!!!!!`);
-  console.log(slide);
-  console.log("Success!");
   return json({
     imageData: slide.base64,
     slideId: slide.id,
-    slideNumber,
+    slideNumber: slide.slideNumber,
     numSlides,
     generateStatus: slide.generateStatus,
     content: slide.summary,
@@ -66,17 +62,31 @@ export default function SlidePage() {
   } = useLoaderData<typeof loader>();
   const { lectureId } = useParams();
   const [displayContent, setDisplayContent] = useState<string>(content || "");
+  //   const tmp = `Lift $L$ can be determined by Lift Coefficient ($C_L$$) like the following
+  // equation.
+
+  // $$
+  // L = \\frac{1}{2} \\rho v^2 S C_L
+  // $$.
+  // `;
+  //   const tmp2 = `\\[M = (Q, \\Sigma, \\Gamma, \\vdash, u, \\delta, s, t, r)\\]`;
 
   useEffect(() => {
-    console.log("something happening");
     let sse: EventSource | null = null;
-    console.log(`Generate status is ${generateStatus}`);
     if (!generateStatus) {
       setDisplayContent("");
-      sse = new EventSource(`/completion?slideId=${slideId}`);
+      sse = new EventSource(
+        `/completion?slideId=${slideId}&lectureId=${lectureId}&slideNumber=${slideNumber}`
+      );
 
       sse.addEventListener("message", (event) => {
-        setDisplayContent((prevResults) => prevResults + event.data);
+        setDisplayContent(
+          (prevResults) => prevResults + JSON.parse(event.data)
+        );
+        console.log("-----------------");
+        console.log("ADDING");
+        console.log(JSON.parse(event.data));
+        console.log("-----------------");
       });
 
       sse.addEventListener("error", (event) => {
@@ -85,8 +95,6 @@ export default function SlidePage() {
           sse.close();
         }
       });
-    } else if (generateStatus === StatusOptions.PROCESSING) {
-      setDisplayContent("Processing...");
     } else if (generateStatus === StatusOptions.READY) {
       if (content) {
         setDisplayContent(content);
@@ -103,13 +111,14 @@ export default function SlidePage() {
         sse.close();
       }
     };
-  }, [content, generateStatus, slideId, StatusOptions]);
-
+  }, [content, slideId, lectureId, slideNumber, generateStatus, StatusOptions]);
+  console.log("completeResponse is now");
+  console.log(JSON.stringify(displayContent));
+  console.log("-----------------");
+  console.log("\n\n\n\n");
   return (
     <div className="h-screen p-6 flex flex-col">
-      {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row items-center justify-center overflow-hidden">
-        {/* Image - centered */}
         <div className="w-full md:w-1/2 flex items-center">
           <img
             src={`data:image/png;base64, ${imageData}`}
@@ -118,12 +127,11 @@ export default function SlidePage() {
           />
         </div>
 
-        {/* Content - grows from top, scrolls when needed */}
         <div className="w-full md:w-1/2 h-full flex flex-col">
           <div className="flex-1 bg-gray-50 rounded-lg overflow-y-auto">
             <div className="p-6">
               {displayContent ? (
-                <Markdown>{displayContent}</Markdown>
+                <RenderedMarkdown source={displayContent} />
               ) : (
                 <p className="text-gray-500">Loading slide content...</p>
               )}
@@ -132,7 +140,6 @@ export default function SlidePage() {
         </div>
       </div>
 
-      {/* Navigation - stays at bottom */}
       <div className="flex mt-6">
         <div className="w-1/2 flex items-center justify-center">
           <p className="text-lg font-medium">

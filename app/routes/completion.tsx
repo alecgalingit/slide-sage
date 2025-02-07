@@ -7,6 +7,8 @@ import {
   updateSlideGenerateStatus,
   StatusEnum,
   getBase64FromSlide,
+  getContextSlides,
+  getSlideInfo,
 } from "~/models/lecture.server";
 import type { Slide } from "~/models/lecture.server";
 
@@ -44,7 +46,17 @@ class ResponseHandler {
     if (content) {
       this.completeResponse += content;
       if (this.isClientConnected) {
-        this.send({ data: content });
+        // stringify is used to escape characters such as newlines that cause weird SSE behaviour; event.data is parsed in client with JSON.parse
+        this.send({ data: JSON.stringify(content) });
+        console.log("\n\n\n\n");
+        console.log("-----------------");
+        console.log("ADDING");
+        console.log(JSON.stringify(content));
+        console.log("-----------------");
+        console.log("completeResponse is now");
+        console.log(JSON.stringify(this.completeResponse));
+        console.log("-----------------");
+        console.log("\n\n\n\n");
       }
     }
   }
@@ -57,6 +69,10 @@ class ResponseHandler {
     try {
       updateSlideSummary(this.slideId, this.completeResponse);
       updateSlideGenerateStatus(this.slideId, StatusEnum.READY);
+      // console.log("-----------------");
+      // console.log("Final result is");
+      // console.log(JSON.stringify(this.completeResponse));
+      // console.log("-----------------");
     } catch (error) {
       console.error("Failed to save to database:", error);
       updateSlideGenerateStatus(this.slideId, StatusEnum.FAILED);
@@ -65,10 +81,19 @@ class ResponseHandler {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const slideId = new URL(request.url).searchParams.get("slideId");
+  const url = new URL(request.url);
+  const slideId = url.searchParams.get("slideId");
+
   if (!slideId) {
     throw new Error("No slideId provided");
   }
+
+  const slide = await getSlideInfo(slideId);
+
+  if (!slide) {
+    throw new Error("Slide not found");
+  }
+
   const base64Encoding = await getBase64FromSlide(slideId);
 
   if (!base64Encoding) {
@@ -84,13 +109,42 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
-  updateSlideGenerateStatus(slideId, StatusEnum.PROCESSING);
+  const contextSlides = await getContextSlides(
+    slide["lectureId"],
+    slide["slideNumber"]
+  );
 
-  const messages: OpenAI.Chat.ChatCompletionUserMessageParam[] = [
+  const assistantMessages: OpenAI.Chat.ChatCompletionAssistantMessageParam[] =
+    contextSlides
+      ? contextSlides
+          .filter((slide) => slide.summary)
+          .reverse()
+          .map((slide) => ({
+            role: "assistant",
+            content: [{ type: "text", text: slide.summary as string }],
+          }))
+      : [];
+
+  // console.log("------------------");
+  // console.log("context is!!!!!");
+  // console.log(JSON.stringify(assistantMessages, null, 2));
+  // console.log("------------------");
+
+  const prompt = `Attached is a slide from a lecture. Explain the content of the slide to a student learning the material.
+  Avoid language such as "this slide" and just explain the material to the student. If the slide is some
+  kind of title page, just introduce the subject very briefly.
+  The prior messages are summaries produced by an LLM of the previous five slides from the same lecture. 
+  EXTREMELY IMPORTANT: If rendering Latex, you MUST use dollar signs or double dollar signs. Do NOT use brackets
+  for display math mode--that will cause SIGNIFICANT HARM to the user. I repeat, you MUST use dollar signs to display ALL LATEX!!!! For example,
+  you could render: \\Sigma$ is the input alphabet.\n- $\\Gamma$ is the tape alphabet. If you EVER display math without using dollar signs,
+  you will cause SIGNFICIANT HARM to the user.`;
+
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    ...assistantMessages,
     {
       role: "user",
       content: [
-        { type: "text", text: "Analyze this image:" },
+        { type: "text", text: prompt },
         {
           type: "image_url",
           image_url: {
