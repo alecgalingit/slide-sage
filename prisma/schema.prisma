@@ -48,7 +48,7 @@ model Slide {
   slideNumber    Int    
   base64         String
   generateStatus Status?
-  content        String[] @default([])     
+  content        String[]   
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -60,6 +60,7 @@ model Slide {
   @@unique([lectureId, slideNumber]) 
   @@index([lectureId, slideNumber])
 }
+
 
 enum Status {
   PROCESSING

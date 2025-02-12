@@ -3,14 +3,12 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, Link, useParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
-import {
-  getSlideFromLecture,
-  getLectureById,
-  StatusEnum,
-} from "~/models/lecture.server";
+import { getSlideFromLecture, getLectureById } from "~/models/lecture.server";
 import { slideFromLectureRoute } from "~/routes";
 import { useEffect, useState } from "react";
 import { RenderedMarkdown } from "~/components/markdownDisplayer";
+import type { Slide, Lecture } from "~/models/lecture.server";
+import { StatusEnum, StatusType } from "~/status";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
@@ -45,10 +43,86 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     slideNumber: slide.slideNumber,
     numSlides,
     generateStatus: slide.generateStatus,
-    content: slide.summary,
-    StatusOptions: StatusEnum, // loaded since StatusEnum is defined in a server only script, and client uses below
+    content: slide.content,
   });
 };
+
+export interface SlideContentManagerProps {
+  slideId: Slide["id"];
+  lectureId: Lecture["id"];
+  slideNumber: Slide["slideNumber"];
+  content: Slide["content"];
+  generateStatus: Slide["generateStatus"];
+}
+
+function SlideContentManager({
+  slideId,
+  lectureId,
+  slideNumber,
+  content,
+  generateStatus,
+}: SlideContentManagerProps) {
+  const [displayContent, setDisplayContent] = useState<string[]>(content || []);
+
+  useEffect(() => {
+    let sse: EventSource | null = null;
+
+    if (!generateStatus) {
+      setDisplayContent([]);
+      sse = new EventSource(
+        `/api/sse/slideSummary?slideId=${slideId}&lectureId=${lectureId}&slideNumber=${slideNumber}`
+      );
+
+      sse.addEventListener("message", (event) => {
+        setDisplayContent((prevResults) => {
+          const newData = JSON.parse(event.data);
+          if (prevResults.length === 0) {
+            return [newData];
+          }
+          return [prevResults[0] + newData];
+        });
+      });
+
+      sse.addEventListener("error", () => {
+        if (sse) {
+          sse.close();
+        }
+      });
+    } else if (generateStatus === StatusEnum.READY) {
+      if (content) {
+        setDisplayContent(content);
+      } else {
+        setDisplayContent(["Generation Failed"]);
+      }
+    } else {
+      setDisplayContent(["Generation Failed"]);
+    }
+
+    return () => {
+      if (sse) {
+        console.log("Closing SSE connection");
+        sse.close();
+      }
+    };
+  }, []);
+
+  return (
+    <div className="p-6">
+      {displayContent && displayContent.length > 0 ? (
+        displayContent.map((content, index) => (
+          <div
+            key={index}
+            className={`p-2 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+          >
+            <RenderedMarkdown source={content} />
+          </div>
+        ))
+      ) : (
+        <p>Loading slide content...</p>
+      )}
+    </div>
+  );
+}
 
 export default function SlidePage() {
   const {
@@ -58,64 +132,9 @@ export default function SlidePage() {
     numSlides,
     generateStatus,
     content,
-    StatusOptions,
   } = useLoaderData<typeof loader>();
   const { lectureId } = useParams();
-  const [displayContent, setDisplayContent] = useState<string>(content || "");
-  //   const tmp = `Lift $L$ can be determined by Lift Coefficient ($C_L$$) like the following
-  // equation.
 
-  // $$
-  // L = \\frac{1}{2} \\rho v^2 S C_L
-  // $$.
-  // `;
-  //   const tmp2 = `\\[M = (Q, \\Sigma, \\Gamma, \\vdash, u, \\delta, s, t, r)\\]`;
-
-  useEffect(() => {
-    let sse: EventSource | null = null;
-    if (!generateStatus) {
-      setDisplayContent("");
-      sse = new EventSource(
-        `/completion?slideId=${slideId}&lectureId=${lectureId}&slideNumber=${slideNumber}`
-      );
-
-      sse.addEventListener("message", (event) => {
-        setDisplayContent(
-          (prevResults) => prevResults + JSON.parse(event.data)
-        );
-        console.log("-----------------");
-        console.log("ADDING");
-        console.log(JSON.parse(event.data));
-        console.log("-----------------");
-      });
-
-      sse.addEventListener("error", (event) => {
-        console.log("error: ", event);
-        if (sse) {
-          sse.close();
-        }
-      });
-    } else if (generateStatus === StatusOptions.READY) {
-      if (content) {
-        setDisplayContent(content);
-      } else {
-        setDisplayContent("Generation Failed");
-      }
-    } else {
-      setDisplayContent("Generation Failed");
-    }
-
-    return () => {
-      if (sse) {
-        console.log("Closing SSE connection");
-        sse.close();
-      }
-    };
-  }, [content, slideId, lectureId, slideNumber, generateStatus, StatusOptions]);
-  console.log("completeResponse is now");
-  console.log(JSON.stringify(displayContent));
-  console.log("-----------------");
-  console.log("\n\n\n\n");
   return (
     <div className="h-screen p-6 flex flex-col">
       <div className="flex-1 flex flex-col md:flex-row items-center justify-center overflow-hidden">
@@ -129,13 +148,15 @@ export default function SlidePage() {
 
         <div className="w-full md:w-1/2 h-full flex flex-col">
           <div className="flex-1 bg-gray-50 rounded-lg overflow-y-auto">
-            <div className="p-6">
-              {displayContent ? (
-                <RenderedMarkdown source={displayContent} />
-              ) : (
-                <p className="text-gray-500">Loading slide content...</p>
-              )}
-            </div>
+            {/* Key prop here forces remount of the component that manages state */}
+            <SlideContentManager
+              key={`${slideId}-${lectureId}`}
+              slideId={slideId}
+              lectureId={lectureId!}
+              slideNumber={slideNumber}
+              content={content || []}
+              generateStatus={generateStatus}
+            />
           </div>
         </div>
       </div>

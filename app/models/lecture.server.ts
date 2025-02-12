@@ -1,5 +1,6 @@
 import { Lecture, Slide, Status } from "@prisma/client";
 import type { User } from "./user.server";
+import type { PrismaClient } from "@prisma/client/extension";
 
 import { prisma } from "~/db.server";
 
@@ -126,15 +127,34 @@ export async function updateNumSlides(
   }
 }
 
-export async function updateSlideGenerateStatus(
+export async function updateSlideSummary(
   slideId: Slide["id"],
-  status: Status
+  summary: string,
+  tx: PrismaClient = prisma
 ) {
   try {
-    await prisma.slide.update({
-      where: {
-        id: slideId,
+    await tx.slide.update({
+      where: { id: slideId },
+      data: {
+        content: [summary],
       },
+    });
+
+    console.log(`Updated summary for slideId: ${slideId}`);
+  } catch (error) {
+    console.error("Error updating slide summary:", error);
+    throw new Error("Failed to update slide summary. Please try again.");
+  }
+}
+
+export async function updateSlideGenerateStatus(
+  slideId: Slide["id"],
+  status: Status,
+  tx: PrismaClient = prisma
+) {
+  try {
+    await tx.slide.update({
+      where: { id: slideId },
       data: {
         generateStatus: status,
       },
@@ -143,27 +163,6 @@ export async function updateSlideGenerateStatus(
   } catch (error) {
     console.error("Error updating slide status:", error);
     throw new Error("Failed to update slide status. Please try again.");
-  }
-}
-
-export async function updateSlideSummary(
-  slideId: Slide["id"],
-  summary: Slide["summary"]
-) {
-  try {
-    await prisma.slide.update({
-      where: {
-        id: slideId,
-      },
-      data: {
-        summary,
-        generateStatus: Status.READY,
-      },
-    });
-    console.log(`Updated summary for slideId: ${slideId}`);
-  } catch (error) {
-    console.error("Error updating slide summary:", error);
-    throw new Error("Failed to update slide summary. Please try again.");
   }
 }
 
@@ -213,13 +212,24 @@ export async function getContextSlides(
   lectureId: string,
   currentSlideNumber: number
 ) {
-  return await prisma.slide.findMany({
-    where: {
-      lectureId,
-      slideNumber: { lt: currentSlideNumber },
-    },
-    orderBy: { slideNumber: "desc" },
-    take: 5,
-    select: { summary: true },
-  });
+  return await prisma.slide
+    .findMany({
+      where: {
+        lectureId,
+        slideNumber: { lt: currentSlideNumber },
+        content: { isEmpty: false },
+      },
+      orderBy: { slideNumber: "desc" },
+      take: 5,
+      select: {
+        content: true,
+        slideNumber: true,
+      },
+    })
+    .then((slides) =>
+      slides.map((slide) => ({
+        summary: slide.content[0],
+        slideNumber: slide.slideNumber,
+      }))
+    );
 }

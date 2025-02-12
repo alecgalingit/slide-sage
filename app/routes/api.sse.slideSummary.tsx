@@ -67,15 +67,12 @@ class ResponseHandler {
 
   async saveToDatabase() {
     try {
-      updateSlideSummary(this.slideId, this.completeResponse);
-      updateSlideGenerateStatus(this.slideId, StatusEnum.READY);
-      // console.log("-----------------");
-      // console.log("Final result is");
-      // console.log(JSON.stringify(this.completeResponse));
-      // console.log("-----------------");
+      await updateSlideSummary(this.slideId, this.completeResponse);
+      await updateSlideGenerateStatus(this.slideId, StatusEnum.READY);
     } catch (error) {
       console.error("Failed to save to database:", error);
-      updateSlideGenerateStatus(this.slideId, StatusEnum.FAILED);
+      await updateSlideGenerateStatus(this.slideId, StatusEnum.FAILED);
+      throw error;
     }
   }
 }
@@ -116,13 +113,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const assistantMessages: OpenAI.Chat.ChatCompletionAssistantMessageParam[] =
     contextSlides
-      ? contextSlides
-          .filter((slide) => slide.summary)
-          .reverse()
-          .map((slide) => ({
-            role: "assistant",
-            content: [{ type: "text", text: slide.summary as string }],
-          }))
+      ? contextSlides.reverse().map((slide) => ({
+          role: "assistant",
+          content: [{ type: "text", text: slide.summary }],
+        }))
       : [];
 
   // console.log("------------------");
@@ -164,6 +158,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return eventStream(request.signal, function setup(send) {
     const handler = new ResponseHandler(slideId, send);
 
+    // keep save to databse in spite of disconnected, since want content to show up if user comes back later after immediately leaving
+    // stop streaming to client though when disconnected, which is handled in handlechuck above
     async function processStream() {
       try {
         for await (const chunk of stream) {
