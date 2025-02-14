@@ -1,14 +1,14 @@
 import { requireUserId } from "~/session.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, Link, useParams } from "@remix-run/react";
+import { useLoaderData, Link, useParams, useFetcher } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { getSlideFromLecture, getLectureById } from "~/models/lecture.server";
 import { slideFromLectureRoute } from "~/routes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { RenderedMarkdown } from "~/components/markdownDisplayer";
 import type { Slide, Lecture } from "~/models/lecture.server";
-import { StatusEnum, StatusType } from "~/status";
+import { StatusEnum } from "~/status";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
@@ -63,12 +63,25 @@ function SlideContentManager({
   generateStatus,
 }: SlideContentManagerProps) {
   const [displayContent, setDisplayContent] = useState<string[]>(content || []);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [query, setQuery] = useState("");
+  const fetcher = useFetcher();
+  const contentRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll effect
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [displayContent]);
+
+  // SSE connection effect
   useEffect(() => {
     let sse: EventSource | null = null;
 
     if (!generateStatus) {
       setDisplayContent([]);
+      setIsStreaming(true);
       sse = new EventSource(
         `/api/sse/slideSummary?slideId=${slideId}&lectureId=${lectureId}&slideNumber=${slideNumber}`
       );
@@ -84,6 +97,14 @@ function SlideContentManager({
       });
 
       sse.addEventListener("error", () => {
+        if (sse) {
+          sse.close();
+        }
+        setIsStreaming(false);
+      });
+
+      sse.addEventListener("end", () => {
+        setIsStreaming(false);
         if (sse) {
           sse.close();
         }
@@ -106,20 +127,81 @@ function SlideContentManager({
     };
   }, []);
 
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!query.trim()) return;
+
+    setDisplayContent((prev) => [...prev, query, ""]);
+
+    setIsStreaming(true);
+
+    const sse = new EventSource(
+      `/api/sse/slideConversation?slideId=${slideId}&query=${encodeURIComponent(query)}`
+    );
+
+    sse.addEventListener("message", (event) => {
+      setDisplayContent((prev) => {
+        const newData = JSON.parse(event.data);
+        const updated = [...prev];
+        updated[updated.length - 1] += newData;
+        return updated;
+      });
+    });
+
+    sse.addEventListener("error", () => {
+      sse.close();
+      setIsStreaming(false);
+    });
+
+    sse.addEventListener("end", () => {
+      setIsStreaming(false);
+      sse.close();
+    });
+
+    setQuery("");
+  };
+
   return (
-    <div className="p-6">
-      {displayContent && displayContent.length > 0 ? (
-        displayContent.map((content, index) => (
-          <div
-            key={index}
-            className={`p-2 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+    <div className="h-full flex flex-col relative">
+      <div ref={contentRef} className="flex-1 overflow-y-auto pb-20">
+        {displayContent && displayContent.length > 0 ? (
+          displayContent.map((content, index) => (
+            <div
+              key={index}
+              className={`p-2 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+            >
+              <RenderedMarkdown source={content} />
+            </div>
+          ))
+        ) : (
+          <p className="p-2">Loading slide content...</p>
+        )}
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-300 bg-white">
+        <fetcher.Form
+          onSubmit={handleSubmit}
+          className="flex items-center space-x-2"
+        >
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 p-2 border rounded-lg focus:outline-none"
+            placeholder="Ask a question about this slide..."
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+            disabled={fetcher.state === "submitting" || isStreaming}
           >
-            <RenderedMarkdown source={content} />
-          </div>
-        ))
-      ) : (
-        <p>Loading slide content...</p>
-      )}
+            {fetcher.state === "submitting" || isStreaming
+              ? "Waiting..."
+              : "Ask"}
+          </button>
+        </fetcher.Form>
+      </div>
     </div>
   );
 }

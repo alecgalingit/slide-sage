@@ -9,11 +9,11 @@ import { verifyLogin } from "~/models/user.server";
 import { validateEmail, safeRedirect } from "~/utils";
 import { Form, Link, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect, useRef } from "react";
-import { dashboardRoute } from "~/routes";
+import { defaultRoute } from "~/routes";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const userId = await getUserId(request);
-  if (userId) return redirect(dashboardRoute);
+  if (userId) return redirect(defaultRoute);
   return json({});
 };
 

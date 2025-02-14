@@ -1,7 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { eventStream } from "remix-utils/sse/server";
 import OpenAI from "openai";
-import { singleton } from "~/singleton.server";
 import {
   updateSlideSummary,
   updateSlideGenerateStatus,
@@ -9,24 +8,15 @@ import {
   getBase64FromSlide,
   getContextSlides,
   getSlideInfo,
+  updateLectureTitle,
 } from "~/models/lecture.server";
+import {
+  openaiClient,
+  buildSummaryQuery,
+  inferSlideTitle,
+} from "~/utils/openai.server";
 import type { Slide } from "~/models/lecture.server";
-
-const openai = singleton(
-  "openai_client",
-  () =>
-    new OpenAI({
-      apiKey: process.env["OPENAI_API_KEY"],
-    })
-);
-
-//Remix utils does not export these types that I use in ResponseHandler class, so had to manually define
-interface SendFunctionArgs {
-  event?: string;
-  data: string;
-}
-type SendFunction = (args: SendFunctionArgs) => void;
-//
+import type { SendFunction } from "~/utils/sse.server";
 
 class ResponseHandler {
   private completeResponse: string;
@@ -75,6 +65,17 @@ class ResponseHandler {
       throw error;
     }
   }
+
+  endStream() {
+    this.send({
+      event: "end",
+      data: JSON.stringify({ message: "Stream complete" }),
+    });
+  }
+
+  getCompleteResponse(): string {
+    return this.completeResponse;
+  }
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -106,50 +107,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
-  const contextSlides = await getContextSlides(
-    slide["lectureId"],
-    slide["slideNumber"]
-  );
+  const lectureId = slide["lectureId"];
+  const slideNumber = slide["slideNumber"];
 
-  const assistantMessages: OpenAI.Chat.ChatCompletionAssistantMessageParam[] =
-    contextSlides
-      ? contextSlides.reverse().map((slide) => ({
-          role: "assistant",
-          content: [{ type: "text", text: slide.summary }],
-        }))
-      : [];
+  const contextSlides = await getContextSlides(lectureId, slideNumber);
 
-  // console.log("------------------");
-  // console.log("context is!!!!!");
-  // console.log(JSON.stringify(assistantMessages, null, 2));
-  // console.log("------------------");
+  const messages = buildSummaryQuery({ contextSlides, base64Encoding });
 
-  const prompt = `Attached is a slide from a lecture. Explain the content of the slide to a student learning the material.
-  Avoid language such as "this slide" and just explain the material to the student. If the slide is some
-  kind of title page, just introduce the subject very briefly.
-  The prior messages are summaries produced by an LLM of the previous five slides from the same lecture. 
-  EXTREMELY IMPORTANT: If rendering Latex, you MUST use dollar signs or double dollar signs. Do NOT use brackets
-  for display math mode--that will cause SIGNIFICANT HARM to the user. I repeat, you MUST use dollar signs to display ALL LATEX!!!! For example,
-  you could render: \\Sigma$ is the input alphabet.\n- $\\Gamma$ is the tape alphabet. If you EVER display math without using dollar signs,
-  you will cause SIGNFICIANT HARM to the user.`;
-
-  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    ...assistantMessages,
-    {
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:image/png;base64,${base64Encoding}`,
-          },
-        },
-      ],
-    },
-  ];
-
-  const stream = await openai.chat.completions.create({
+  const stream = await openaiClient.chat.completions.create({
     model: "gpt-4o",
     messages,
     stream: true,
@@ -166,6 +131,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
           handler.handleChunk(chunk);
         }
         await handler.saveToDatabase();
+        if (slideNumber === 1) {
+          const title = await inferSlideTitle({
+            slideSummary: handler.getCompleteResponse(),
+          });
+          await updateLectureTitle({ lectureId, title });
+        }
+        handler.endStream();
       } catch (error) {
         console.error("Error processing stream:", error);
       }
