@@ -11,6 +11,7 @@ import { requireUserId } from "~/session.server";
 //import { queue } from "~/queues/extractorqueue.server";
 import { slideFromLectureRoute } from "~/routes";
 import { extractLecture } from "~/utils/extractor.server";
+import { convertPptToPdf } from "~/utils/converter.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
@@ -23,33 +24,59 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const uploadHandler = unstable_createMemoryUploadHandler({
     maxPartSize: 10_000_000,
   }); // 10 MB max
+
   const formData = await unstable_parseMultipartFormData(
     request,
     uploadHandler
   );
-  const pdfFile = formData.get("pdf");
+  const file = formData.get("presentation");
 
-  if (!pdfFile || !(pdfFile instanceof File)) {
-    return json({ message: "No valid PDF file provided" }, { status: 400 });
+  if (!file || !(file instanceof File)) {
+    return json({ message: "No valid file provided" }, { status: 400 });
   }
 
   const lecture = await createLecture(
     userId,
     "Uploaded Lecture",
-    "Automatically created after PDF upload"
+    "Automatically created after file upload"
   );
 
-  const arrayBuffer = await pdfFile.arrayBuffer();
-  const base64pdf = Buffer.from(arrayBuffer).toString("base64");
+  try {
+    let pdfBuffer: Buffer;
 
-  // queue.add("Extract images from slide and upload to cloud", {
-  //   lectureId: lecture.id,
-  //   userId: userId,
-  //   pdfBuffer: base64pdf,
-  // });
-  await extractLecture({ lectureId: lecture.id, userId, pdfBuffer: base64pdf });
+    // Check file extension to determine if conversion is needed
+    const fileExtension = file.name.toLowerCase().split(".").pop();
 
-  return redirect(slideFromLectureRoute(lecture.id, 1));
+    if (fileExtension === "pdf") {
+      const arrayBuffer = await file.arrayBuffer();
+      pdfBuffer = Buffer.from(arrayBuffer);
+    } else if (["ppt", "pptx"].includes(fileExtension || "")) {
+      pdfBuffer = await convertPptToPdf(file);
+    } else {
+      return json(
+        {
+          message:
+            "Unsupported file format. Please upload PDF or PowerPoint files.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const base64pdf = pdfBuffer.toString("base64");
+    await extractLecture({
+      lectureId: lecture.id,
+      userId,
+      pdfBuffer: base64pdf,
+    });
+
+    return redirect(slideFromLectureRoute(lecture.id, 1));
+  } catch (error) {
+    console.error("Error processing file:", error);
+    return json(
+      { message: "Failed to process the uploaded file" },
+      { status: 500 }
+    );
+  }
 };
 
 export default function PDFUploadPage() {
@@ -64,9 +91,9 @@ export default function PDFUploadPage() {
         </label>
         <input
           type="file"
-          id="pdf"
-          name="pdf"
-          accept=".pdf"
+          id="presentation"
+          name="presentation"
+          accept=".pdf,.ppt,.pptx"
           className="border p-2 w-full mb-4"
           required
         />
