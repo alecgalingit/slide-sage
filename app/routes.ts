@@ -12,3 +12,6 @@ export const slideFromLectureRoute = (
   lectureId: Slide["lectureId"],
   slideNumber: Slide["slideNumber"]
 ) => `${lectureRoute(lectureId)}/slides/${slideNumber}`;
+
+export const apiRoute = "/api";
+export const queueSummariesRoute = `${apiRoute}/queueSummaries`;

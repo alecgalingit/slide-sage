@@ -4,7 +4,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData, Link, useParams, useFetcher } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { getSlideFromLecture, getLectureById } from "~/models/lecture.server";
-import { slideFromLectureRoute } from "~/routes";
+import { slideFromLectureRoute, queueSummariesRoute } from "~/routes";
 import { useEffect, useState, useRef } from "react";
 import { RenderedMarkdown } from "~/components/markdownDisplayer";
 import type { Slide, Lecture } from "~/models/lecture.server";
@@ -37,6 +37,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (!slide) {
     throw new Response("Slide not Found", { status: 404 });
   }
+
   return json({
     imageData: slide.base64,
     slideId: slide.id,
@@ -55,6 +56,10 @@ export interface SlideContentManagerProps {
   generateStatus: Slide["generateStatus"];
 }
 
+const useSlideFetcher = (lectureId: string, slideId: string) => {
+  return useFetcher({ key: `${lectureId}-${slideId}` });
+};
+
 function SlideContentManager({
   slideId,
   lectureId,
@@ -65,7 +70,7 @@ function SlideContentManager({
   const [displayContent, setDisplayContent] = useState<string[]>(content || []);
   const [isStreaming, setIsStreaming] = useState(false);
   const [query, setQuery] = useState("");
-  const fetcher = useFetcher();
+  const fetcher = useSlideFetcher(lectureId, slideId);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll effect
@@ -77,6 +82,16 @@ function SlideContentManager({
 
   // SSE connection effect
   useEffect(() => {
+    console.log("🔍 Debugging Lecture Slide Process:");
+    console.log(`📜 Content:`, content);
+    console.log(`🔄 Fetcher:`, fetcher);
+    console.log(`⚡ Generate Status:`, generateStatus);
+    console.log(`📚 Lecture ID:`, lectureId);
+    console.log(`🖼️ Slide ID:`, slideId);
+    console.log(`📑 Slide Number:`, slideNumber);
+    console.log(`isStreaming`, isStreaming);
+    console.log("✅ Process Complete.");
+    console.log(isStreaming);
     let sse: EventSource | null = null;
 
     if (!generateStatus) {
@@ -110,11 +125,14 @@ function SlideContentManager({
         }
       });
     } else if (generateStatus === StatusEnum.READY) {
-      if (content) {
-        setDisplayContent(content);
-      } else {
-        setDisplayContent(["Generation Failed"]);
-      }
+      setDisplayContent(content);
+      fetcher.submit(
+        { numToQueue: 5, lectureId, slideNumber },
+        {
+          method: "post",
+          action: queueSummariesRoute,
+        }
+      );
     } else {
       setDisplayContent(["Generation Failed"]);
     }

@@ -90,6 +90,32 @@ export async function getSlideFromLecture({
   });
 }
 
+export async function getSlideId({
+  lectureId,
+  slideNumber,
+}: Pick<Slide, "lectureId" | "slideNumber">) {
+  return prisma.slide.findUnique({
+    where: {
+      lectureId_slideNumber: {
+        lectureId,
+        slideNumber,
+      },
+    },
+    select: { id: true },
+  });
+}
+
+export async function getNumSlides(lectureId: Lecture["id"]) {
+  const result = await prisma.lecture.findUnique({
+    where: {
+      id: lectureId,
+    },
+    select: { numSlides: true },
+  });
+
+  return result?.numSlides ?? null;
+}
+
 export async function deleteSlidesByLectureId(lectureId: Lecture["id"]) {
   try {
     const deletedSlides = await prisma.slide.deleteMany({
@@ -129,45 +155,6 @@ export async function updateNumSlides(
   }
 }
 
-export async function updateSlideSummary(
-  slideId: Slide["id"],
-  summary: string,
-  tx: PrismaClient = prisma
-) {
-  try {
-    await tx.slide.update({
-      where: { id: slideId },
-      data: {
-        content: [summary],
-      },
-    });
-
-    console.log(`Updated summary for slideId: ${slideId}`);
-  } catch (error) {
-    console.error("Error updating slide summary:", error);
-    throw new Error("Failed to update slide summary. Please try again.");
-  }
-}
-
-export async function updateSlideGenerateStatus(
-  slideId: Slide["id"],
-  status: Status,
-  tx: PrismaClient = prisma
-) {
-  try {
-    await tx.slide.update({
-      where: { id: slideId },
-      data: {
-        generateStatus: status,
-      },
-    });
-    console.log(`Updated status for slideId: ${slideId} to ${status}`);
-  } catch (error) {
-    console.error("Error updating slide status:", error);
-    throw new Error("Failed to update slide status. Please try again.");
-  }
-}
-
 export async function createLecture(
   userId: User["id"],
   title: string,
@@ -190,24 +177,6 @@ export async function updateLectureStatus(
     where: { id: lectureId },
     data: { status: newStatus },
   });
-}
-
-export async function getBase64FromSlide(slideId: Slide["id"]) {
-  try {
-    const slide = await prisma.slide.findUnique({
-      where: { id: slideId },
-      select: { base64: true },
-    });
-
-    if (!slide) {
-      throw new Error(`Slide with ID ${slideId} not found.`);
-    }
-
-    return slide.base64;
-  } catch (error) {
-    console.error("Error retrieving base64 from slide:", error);
-    throw error;
-  }
 }
 
 export async function getContextSlides(
@@ -328,5 +297,99 @@ export async function updateLectureTitle({
   } catch (error) {
     console.error("Error updating lecture title:", error);
     throw new Error("Failed to update lecture title. Please try again.");
+  }
+}
+
+type SlideIdentifier =
+  | { id: Slide["id"] }
+  | { lectureId: Slide["lectureId"]; slideNumber: Slide["slideNumber"] };
+
+function createWhereClause(identifier: SlideIdentifier) {
+  if ("id" in identifier) {
+    return { id: identifier.id };
+  }
+  return {
+    lectureId_slideNumber: {
+      lectureId: identifier.lectureId,
+      slideNumber: identifier.slideNumber,
+    },
+  };
+}
+
+export async function getBase64FromSlide(identifier: SlideIdentifier) {
+  try {
+    const slide = await prisma.slide.findUnique({
+      where: createWhereClause(identifier),
+      select: { base64: true },
+    });
+
+    if (!slide) {
+      const errorDetails =
+        "id" in identifier
+          ? `Slide with ID ${identifier.id} not found.`
+          : `Slide with lectureId ${identifier.lectureId} and number ${identifier.slideNumber} not found.`;
+      throw new Error(errorDetails);
+    }
+
+    return slide.base64;
+  } catch (error) {
+    console.error("Error retrieving base64 from slide:", error);
+    throw error;
+  }
+}
+
+export async function updateSlideSummary({
+  identifier,
+  summary,
+  tx = prisma,
+}: {
+  identifier: SlideIdentifier;
+  summary: string;
+  tx?: PrismaClient;
+}) {
+  try {
+    await tx.slide.update({
+      where: createWhereClause(identifier),
+      data: {
+        content: [summary],
+      },
+    });
+
+    const logDetails =
+      "id" in identifier
+        ? `slideId: ${identifier.id}`
+        : `lectureId: ${identifier.lectureId}, slideNumber: ${identifier.slideNumber}`;
+    console.log(`Updated summary for ${logDetails}`);
+  } catch (error) {
+    console.error("Error updating slide summary:", error);
+    throw new Error("Failed to update slide summary. Please try again.");
+  }
+}
+
+export async function updateSlideGenerateStatus({
+  identifier,
+  status,
+  tx = prisma,
+}: {
+  identifier: SlideIdentifier;
+  status: Status;
+  tx?: PrismaClient;
+}) {
+  try {
+    await tx.slide.update({
+      where: createWhereClause(identifier),
+      data: {
+        generateStatus: status,
+      },
+    });
+
+    const logDetails =
+      "id" in identifier
+        ? `slideId: ${identifier.id}`
+        : `lectureId: ${identifier.lectureId}, slideNumber: ${identifier.slideNumber}`;
+    console.log(`Updated status for ${logDetails} to ${status}`);
+  } catch (error) {
+    console.error("Error updating slide status:", error);
+    throw new Error("Failed to update slide status. Please try again.");
   }
 }

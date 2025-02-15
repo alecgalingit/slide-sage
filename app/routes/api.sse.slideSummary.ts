@@ -15,8 +15,9 @@ import {
   buildSummaryQuery,
   inferSlideTitle,
 } from "~/utils/openai.server";
-import type { Slide } from "~/models/lecture.server";
+import type { Slide, Lecture } from "~/models/lecture.server";
 import type { SendFunction } from "~/utils/sse.server";
+import { queueSummaries } from "~/utils/queueSummaries.server";
 
 class ResponseHandler {
   private completeResponse: string;
@@ -24,7 +25,12 @@ class ResponseHandler {
   private send: SendFunction;
   private slideId: Slide["id"];
 
-  constructor(slideId: Slide["id"], send: SendFunction) {
+  constructor(
+    slideId: Slide["id"],
+    lectureId: Lecture["id"],
+    slideNumber: Slide["slideNumber"],
+    send: SendFunction
+  ) {
     this.completeResponse = "";
     this.isClientConnected = true;
     this.send = send;
@@ -57,11 +63,20 @@ class ResponseHandler {
 
   async saveToDatabase() {
     try {
-      await updateSlideSummary(this.slideId, this.completeResponse);
-      await updateSlideGenerateStatus(this.slideId, StatusEnum.READY);
+      await updateSlideSummary({
+        identifier: { id: this.slideId },
+        summary: this.completeResponse,
+      });
+      await updateSlideGenerateStatus({
+        identifier: { id: this.slideId },
+        status: StatusEnum.READY,
+      });
     } catch (error) {
       console.error("Failed to save to database:", error);
-      await updateSlideGenerateStatus(this.slideId, StatusEnum.FAILED);
+      await updateSlideGenerateStatus({
+        identifier: { id: this.slideId },
+        status: StatusEnum.FAILED,
+      });
       throw error;
     }
   }
@@ -92,7 +107,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Error("Slide not found");
   }
 
-  const base64Encoding = await getBase64FromSlide(slideId);
+  const base64Encoding = await getBase64FromSlide({ id: slideId });
 
   if (!base64Encoding) {
     // Return an error event stream if the encoding doesn't exist
@@ -121,7 +136,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   return eventStream(request.signal, function setup(send) {
-    const handler = new ResponseHandler(slideId, send);
+    const handler = new ResponseHandler(slideId, lectureId, slideNumber, send);
 
     // keep save to databse in spite of disconnected, since want content to show up if user comes back later after immediately leaving
     // stop streaming to client though when disconnected, which is handled in handlechuck above
@@ -138,6 +153,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           await updateLectureTitle({ lectureId, title });
         }
         handler.endStream();
+        queueSummaries(5, lectureId, slideNumber);
       } catch (error) {
         console.error("Error processing stream:", error);
       }

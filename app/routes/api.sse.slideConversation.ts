@@ -96,7 +96,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Error("Slide not found");
   }
 
-  const base64Encoding = await getBase64FromSlide(slideId);
+  const base64Encoding = await getBase64FromSlide({ id: slideId });
 
   if (!base64Encoding) {
     // Return an error event stream if the encoding doesn't exist

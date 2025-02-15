@@ -1,6 +1,5 @@
 import { promisify } from "util";
 import libre from "libreoffice-convert";
-import type { File } from "@remix-run/node";
 
 const libreConvert = promisify(libre.convert);
 
