@@ -67,10 +67,6 @@ class ResponseHandler {
         identifier: { id: this.slideId },
         summary: this.completeResponse,
       });
-      await updateSlideGenerateStatus({
-        identifier: { id: this.slideId },
-        status: StatusEnum.READY,
-      });
     } catch (error) {
       console.error("Failed to save to database:", error);
       await updateSlideGenerateStatus({
@@ -106,6 +102,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!slide) {
     throw new Error("Slide not found");
   }
+
+  await updateSlideGenerateStatus({
+    identifier: { id: slideId },
+    status: StatusEnum.PROCESSING,
+  });
 
   const base64Encoding = await getBase64FromSlide({ id: slideId });
 

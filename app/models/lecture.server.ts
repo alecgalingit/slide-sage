@@ -3,6 +3,7 @@ import type { User } from "./user.server";
 import type { PrismaClient } from "@prisma/client/extension";
 
 import { prisma } from "~/db.server";
+import { string } from "zod";
 
 export type { Lecture, Slide, Status } from "@prisma/client";
 // export status with normal export as well so can access values
@@ -342,18 +343,42 @@ export async function updateSlideSummary({
   identifier,
   summary,
   tx = prisma,
+  safe = false,
 }: {
   identifier: SlideIdentifier;
   summary: string;
   tx?: PrismaClient;
+  safe?: boolean;
 }) {
   try {
-    await tx.slide.update({
-      where: createWhereClause(identifier),
-      data: {
-        content: [summary],
-      },
-    });
+    if (safe) {
+      const where =
+        "id" in identifier
+          ? { id: identifier.id }
+          : {
+              lectureId: identifier.lectureId,
+              slideNumber: identifier.slideNumber,
+            };
+
+      await tx.slide.updateMany({
+        where: {
+          ...where,
+          generateStatus: null,
+        },
+        data: {
+          content: [summary],
+          generateStatus: Status.READY,
+        },
+      });
+    } else {
+      await tx.slide.update({
+        where: createWhereClause(identifier),
+        data: {
+          content: [summary],
+          generateStatus: Status.READY,
+        },
+      });
+    }
 
     const logDetails =
       "id" in identifier
@@ -370,18 +395,41 @@ export async function updateSlideGenerateStatus({
   identifier,
   status,
   tx = prisma,
+  safe = false,
 }: {
   identifier: SlideIdentifier;
   status: Status;
   tx?: PrismaClient;
+  safe?: boolean;
 }) {
   try {
-    await tx.slide.update({
-      where: createWhereClause(identifier),
-      data: {
-        generateStatus: status,
-      },
-    });
+    if (safe) {
+      const where =
+        "id" in identifier
+          ? { id: identifier.id }
+          : {
+              lectureId: identifier.lectureId,
+              slideNumber: identifier.slideNumber,
+            };
+
+      await tx.slide.updateMany({
+        where: {
+          ...where,
+          content: { isEmpty: true },
+          generateStatus: null,
+        },
+        data: {
+          generateStatus: status,
+        },
+      });
+    } else {
+      await tx.slide.update({
+        where: createWhereClause(identifier),
+        data: {
+          generateStatus: status,
+        },
+      });
+    }
 
     const logDetails =
       "id" in identifier

@@ -48,7 +48,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   });
 };
 
-export interface SlideContentManagerProps {
+export interface SummaryDisplayerManagerProps {
   slideId: Slide["id"];
   lectureId: Lecture["id"];
   slideNumber: Slide["slideNumber"];
@@ -60,27 +60,85 @@ const useSlideFetcher = (lectureId: string, slideId: string) => {
   return useFetcher({ key: `${lectureId}-${slideId}` });
 };
 
-function SlideContentManager({
+interface SummaryDisplayerProps {
+  content: string[];
+  onSubmitQuery: (query: string) => void;
+  isStreaming: boolean;
+  isSubmitting: boolean;
+}
+
+export function SummaryDisplayer({
+  content,
+  onSubmitQuery,
+  isStreaming,
+  isSubmitting,
+}: SummaryDisplayerProps) {
+  const [query, setQuery] = useState("");
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [content]);
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!query.trim()) return;
+    onSubmitQuery(query);
+    setQuery("");
+  };
+
+  return (
+    <div className="h-full flex flex-col relative">
+      <div ref={contentRef} className="flex-1 overflow-y-auto pb-20">
+        {content && content.length > 0 ? (
+          content.map((content, index) => (
+            <div
+              key={index}
+              className={`p-2 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+            >
+              <RenderedMarkdown source={content} />
+            </div>
+          ))
+        ) : (
+          <p className="p-2">Loading slide content...</p>
+        )}
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-300 bg-white">
+        <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 p-2 border rounded-lg focus:outline-none"
+            placeholder="Ask a question about this slide..."
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+            disabled={isSubmitting || isStreaming}
+          >
+            {isSubmitting || isStreaming ? "Waiting..." : "Ask"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function SummaryDisplayerManager({
   slideId,
   lectureId,
   slideNumber,
   content,
   generateStatus,
-}: SlideContentManagerProps) {
+}: SummaryDisplayerManagerProps) {
   const [displayContent, setDisplayContent] = useState<string[]>(content || []);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [query, setQuery] = useState("");
   const fetcher = useSlideFetcher(lectureId, slideId);
-  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll effect
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [displayContent]);
-
-  // SSE connection effect
   useEffect(() => {
     console.log("🔍 Debugging Lecture Slide Process:");
     console.log(`📜 Content:`, content);
@@ -91,7 +149,7 @@ function SlideContentManager({
     console.log(`📑 Slide Number:`, slideNumber);
     console.log(`isStreaming`, isStreaming);
     console.log("✅ Process Complete.");
-    console.log(isStreaming);
+
     let sse: EventSource | null = null;
 
     if (!generateStatus) {
@@ -134,7 +192,9 @@ function SlideContentManager({
         }
       );
     } else {
-      setDisplayContent(["Generation Failed"]);
+      setDisplayContent([
+        `Generation Failed: length is ${content.length} and status is ${generateStatus}`,
+      ]);
     }
 
     return () => {
@@ -145,13 +205,8 @@ function SlideContentManager({
     };
   }, []);
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!query.trim()) return;
-
+  const handleQuerySubmit = (query: string) => {
     setDisplayContent((prev) => [...prev, query, ""]);
-
     setIsStreaming(true);
 
     const sse = new EventSource(
@@ -176,51 +231,15 @@ function SlideContentManager({
       setIsStreaming(false);
       sse.close();
     });
-
-    setQuery("");
   };
 
   return (
-    <div className="h-full flex flex-col relative">
-      <div ref={contentRef} className="flex-1 overflow-y-auto pb-20">
-        {displayContent && displayContent.length > 0 ? (
-          displayContent.map((content, index) => (
-            <div
-              key={index}
-              className={`p-2 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
-            >
-              <RenderedMarkdown source={content} />
-            </div>
-          ))
-        ) : (
-          <p className="p-2">Loading slide content...</p>
-        )}
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-300 bg-white">
-        <fetcher.Form
-          onSubmit={handleSubmit}
-          className="flex items-center space-x-2"
-        >
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 p-2 border rounded-lg focus:outline-none"
-            placeholder="Ask a question about this slide..."
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-            disabled={fetcher.state === "submitting" || isStreaming}
-          >
-            {fetcher.state === "submitting" || isStreaming
-              ? "Waiting..."
-              : "Ask"}
-          </button>
-        </fetcher.Form>
-      </div>
-    </div>
+    <SummaryDisplayer
+      content={displayContent}
+      onSubmitQuery={handleQuerySubmit}
+      isStreaming={isStreaming}
+      isSubmitting={fetcher.state === "submitting"}
+    />
   );
 }
 
@@ -248,8 +267,7 @@ export default function SlidePage() {
 
         <div className="w-full md:w-1/2 h-full flex flex-col">
           <div className="flex-1 bg-gray-50 rounded-lg overflow-y-auto">
-            {/* Key prop here forces remount of the component that manages state */}
-            <SlideContentManager
+            <SummaryDisplayerManager
               key={`${slideId}-${lectureId}`}
               slideId={slideId}
               lectureId={lectureId!}
