@@ -15,3 +15,6 @@ export const slideFromLectureRoute = (
 
 export const apiRoute = "/api";
 export const queueSummariesRoute = `${apiRoute}/queueSummaries`;
+
+export const sideBarSearchKey = "sidebar";
+export const sideBarCollapsedValue = "collapsed";

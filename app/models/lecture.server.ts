@@ -3,7 +3,6 @@ import type { User } from "./user.server";
 import type { PrismaClient } from "@prisma/client/extension";
 
 import { prisma } from "~/db.server";
-import { string } from "zod";
 
 export type { Lecture, Slide, Status } from "@prisma/client";
 // export status with normal export as well so can access values
@@ -439,5 +438,30 @@ export async function updateSlideGenerateStatus({
   } catch (error) {
     console.error("Error updating slide status:", error);
     throw new Error("Failed to update slide status. Please try again.");
+  }
+}
+
+export async function getAllSlideBase64s(lectureId: Lecture["id"]) {
+  try {
+    const slides = await prisma.slide.findMany({
+      where: {
+        lectureId,
+      },
+      select: {
+        base64: true,
+        slideNumber: true,
+      },
+      orderBy: {
+        slideNumber: "asc",
+      },
+    });
+
+    return slides.map((slide) => ({
+      base64: slide.base64,
+      slideNumber: slide.slideNumber,
+    }));
+  } catch (error) {
+    console.error("Error retrieving base64s for lecture:", error);
+    throw error;
   }
 }

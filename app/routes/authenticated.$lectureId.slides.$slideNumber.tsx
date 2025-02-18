@@ -1,32 +1,25 @@
-import { requireUserId } from "~/session.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, Link, useParams, useFetcher } from "@remix-run/react";
+import {
+  useLoaderData,
+  Link,
+  useFetcher,
+  useOutletContext,
+  useLocation,
+} from "@remix-run/react";
 import invariant from "tiny-invariant";
-import { getSlideFromLecture, getLectureById } from "~/models/lecture.server";
+import { getSlideFromLecture } from "~/models/lecture.server";
 import { slideFromLectureRoute, queueSummariesRoute } from "~/routes";
 import { useEffect, useState, useRef } from "react";
 import { RenderedMarkdown } from "~/components/markdownDisplayer";
 import type { Slide, Lecture } from "~/models/lecture.server";
 import { StatusEnum } from "~/status";
+import { requireUserId } from "~/session.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const userId = await requireUserId(request);
+  await requireUserId(request);
   invariant(params.lectureId, "lectureId not found");
   invariant(params.slideNumber, "slideNumber not found");
-
-  const lecture = await getLectureById(params.lectureId);
-  if (!lecture || userId !== lecture.userId) {
-    throw new Response("Lecture not found", {
-      status: 404,
-    });
-  }
-
-  if (!lecture.numSlides) {
-    throw new Response("Number of slides not found", { status: 404 });
-  }
-
-  const numSlides = lecture.numSlides;
 
   const slideNumber = Number(params.slideNumber);
   const slide = await getSlideFromLecture({
@@ -42,7 +35,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     imageData: slide.base64,
     slideId: slide.id,
     slideNumber: slide.slideNumber,
-    numSlides,
     generateStatus: slide.generateStatus,
     content: slide.content,
   });
@@ -67,7 +59,7 @@ interface SummaryDisplayerProps {
   isSubmitting: boolean;
 }
 
-export function SummaryDisplayer({
+function SummaryDisplayer({
   content,
   onSubmitQuery,
   isStreaming,
@@ -76,18 +68,24 @@ export function SummaryDisplayer({
   const [query, setQuery] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [content]);
-
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!query.trim()) return;
     onSubmitQuery(query);
     setQuery("");
+
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.scrollTop = contentRef.current.scrollHeight;
+      }
+    }, 0);
   };
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, []);
 
   return (
     <div className="h-full flex flex-col relative">
@@ -140,19 +138,11 @@ function SummaryDisplayerManager({
   const fetcher = useSlideFetcher(lectureId, slideId);
 
   useEffect(() => {
-    console.log("🔍 Debugging Lecture Slide Process:");
-    console.log(`📜 Content:`, content);
-    console.log(`🔄 Fetcher:`, fetcher);
-    console.log(`⚡ Generate Status:`, generateStatus);
-    console.log(`📚 Lecture ID:`, lectureId);
-    console.log(`🖼️ Slide ID:`, slideId);
-    console.log(`📑 Slide Number:`, slideNumber);
-    console.log(`isStreaming`, isStreaming);
-    console.log("✅ Process Complete.");
-
     let sse: EventSource | null = null;
 
-    if (!generateStatus) {
+    // If slide not generated yet, or was in the process of generating in background, start or restart generation process
+    // Background task configured to give priority to a streaming response that replaces it
+    if (!generateStatus || generateStatus === StatusEnum.PROCESSING) {
       setDisplayContent([]);
       setIsStreaming(true);
       sse = new EventSource(
@@ -192,14 +182,11 @@ function SummaryDisplayerManager({
         }
       );
     } else {
-      setDisplayContent([
-        `Generation Failed: length is ${content.length} and status is ${generateStatus}`,
-      ]);
+      setDisplayContent([`Generation Failed`]);
     }
 
     return () => {
       if (sse) {
-        console.log("Closing SSE connection");
         sse.close();
       }
     };
@@ -235,6 +222,7 @@ function SummaryDisplayerManager({
 
   return (
     <SummaryDisplayer
+      key={`${slideId}-${lectureId}`}
       content={displayContent}
       onSubmitQuery={handleQuerySubmit}
       isStreaming={isStreaming}
@@ -243,21 +231,20 @@ function SummaryDisplayerManager({
   );
 }
 
-export default function SlidePage() {
-  const {
-    imageData,
-    slideId,
-    slideNumber,
-    numSlides,
-    generateStatus,
-    content,
-  } = useLoaderData<typeof loader>();
-  const { lectureId } = useParams();
+interface OutletContext {
+  numSlides: number;
+  lectureId: string;
+}
 
+export default function SlidePage() {
+  const { imageData, slideId, slideNumber, generateStatus, content } =
+    useLoaderData<typeof loader>();
+  const { numSlides, lectureId } = useOutletContext<OutletContext>();
+  const location = useLocation();
   return (
-    <div className="h-screen p-6 flex flex-col">
-      <div className="flex-1 flex flex-col md:flex-row items-center justify-center overflow-hidden">
-        <div className="w-full md:w-1/2 flex items-center">
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+        <div className="w-full md:w-1/2 flex items-start">
           <img
             src={`data:image/png;base64, ${imageData}`}
             alt={`Slide ${slideNumber}`}
@@ -265,12 +252,12 @@ export default function SlidePage() {
           />
         </div>
 
-        <div className="w-full md:w-1/2 h-full flex flex-col">
-          <div className="flex-1 bg-gray-50 rounded-lg overflow-y-auto">
+        <div className="w-full md:w-1/2 flex flex-col min-h-0">
+          <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden">
             <SummaryDisplayerManager
               key={`${slideId}-${lectureId}`}
               slideId={slideId}
-              lectureId={lectureId!}
+              lectureId={lectureId}
               slideNumber={slideNumber}
               content={content || []}
               generateStatus={generateStatus}
@@ -279,22 +266,31 @@ export default function SlidePage() {
         </div>
       </div>
 
-      <div className="flex mt-6">
-        <div className="w-1/2 flex items-center justify-center">
-          <p className="text-lg font-medium">
-            Slide {slideNumber} of {numSlides}
-          </p>
-        </div>
-        <div className="w-1/2 flex items-center justify-center space-x-4">
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p className="text-lg font-medium">
+          Slide {slideNumber} of {numSlides}
+        </p>
+        <div className="flex items-center space-x-4">
           {slideNumber > 1 && (
-            <Link to={slideFromLectureRoute(lectureId!, slideNumber - 1)}>
+            <Link
+              to={{
+                pathname: slideFromLectureRoute(lectureId, slideNumber - 1),
+                search: location.search,
+              }}
+            >
               <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                 Previous
               </button>
             </Link>
           )}
           {slideNumber < numSlides && (
-            <Link to={slideFromLectureRoute(lectureId!, slideNumber + 1)}>
+            <Link
+              to={{
+                pathname: slideFromLectureRoute(lectureId, slideNumber + 1),
+                search: location.search,
+              }}
+              preventScrollReset
+            >
               <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                 Next
               </button>

@@ -9,7 +9,11 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { createLecture } from "~/models/lecture.server";
 import { requireUserId } from "~/session.server";
 //import { queue } from "~/queues/extractorqueue.server";
-import { slideFromLectureRoute } from "~/routes";
+import {
+  slideFromLectureRoute,
+  sideBarSearchKey,
+  sideBarCollapsedValue,
+} from "~/routes";
 import { extractLecture } from "~/utils/extractor.server";
 import { convertPptToPdf } from "~/utils/converter.server";
 
@@ -69,7 +73,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       pdfBuffer: base64pdf,
     });
 
-    return redirect(slideFromLectureRoute(lecture.id, 1));
+    const redirectUrl = `${slideFromLectureRoute(lecture.id, 1)}?${sideBarSearchKey}=${sideBarCollapsedValue}`;
+    return redirect(redirectUrl);
   } catch (error) {
     console.error("Error processing file:", error);
     return json(
