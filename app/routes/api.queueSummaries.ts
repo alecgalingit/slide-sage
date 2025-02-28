@@ -5,16 +5,15 @@ import { queueSummaries } from "~/utils/queueSummaries.server";
 export const action: ActionFunction = async ({ request }) => {
   try {
     const formData = await request.formData();
-    const numToQueue = Number(formData.get("numToQueue"));
     const lectureId = formData.get("lectureId")?.toString();
     const slideNumber = Number(formData.get("slideNumber"));
 
-    if (isNaN(numToQueue) || !lectureId || isNaN(slideNumber)) {
+    if (!lectureId || isNaN(slideNumber)) {
       return json({ error: "Invalid input" }, { status: 400 });
     }
 
     console.log("HEREE_1");
-    await queueSummaries(numToQueue, lectureId, slideNumber);
+    await queueSummaries(lectureId, slideNumber);
     console.log("HEREE_2");
 
     return json({ message: "Slide summaries queued successfully" });

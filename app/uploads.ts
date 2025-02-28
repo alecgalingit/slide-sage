@@ -46,7 +46,7 @@ export const generatePresignedUrl = async (
   }
 };
 
-export const MAX_FILE_SIZE = 1 * 1024;
+export const MAX_FILE_SIZE = 2 * 1024;
 export const ALLOWED_FILE_TYPES = ["text/plain"];
 
 export async function getBase64FromS3(s3Key: string) {

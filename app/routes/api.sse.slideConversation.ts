@@ -10,7 +10,7 @@ import {
 import type { Slide } from "~/models/lecture.server";
 import {
   openaiClient,
-  buildQueryWithConversationContext,
+  buildQueryWithConversationContextEfficient,
 } from "~/utils/openai.server";
 import type { SendFunction } from "~/utils/sse.server";
 
@@ -36,15 +36,6 @@ class ResponseHandler {
       if (this.isClientConnected) {
         // stringify is used to escape characters such as newlines that cause weird SSE behaviour; event.data is parsed in client with JSON.parse
         this.send({ data: JSON.stringify(content) });
-        console.log("\n\n\n\n");
-        console.log("-----------------");
-        console.log("ADDING");
-        console.log(JSON.stringify(content));
-        console.log("-----------------");
-        console.log("completeResponse is now");
-        console.log(JSON.stringify(this.completeResponse));
-        console.log("-----------------");
-        console.log("\n\n\n\n");
       }
     }
   }
@@ -111,15 +102,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
-  const contextSlides = await getContextSlides(
-    slide["lectureId"],
-    slide["slideNumber"]
-  );
-
   const content = slide.content;
 
-  const messages = buildQueryWithConversationContext({
-    contextSlides,
+  const messages = buildQueryWithConversationContextEfficient({
     base64Encoding,
     content,
     query,

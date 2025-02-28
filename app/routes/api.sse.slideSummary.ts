@@ -44,15 +44,6 @@ class ResponseHandler {
       if (this.isClientConnected) {
         // stringify is used to escape characters such as newlines that cause weird SSE behaviour; event.data is parsed in client with JSON.parse
         this.send({ data: JSON.stringify(content) });
-        console.log("\n\n\n\n");
-        console.log("-----------------");
-        console.log("ADDING");
-        console.log(JSON.stringify(content));
-        console.log("-----------------");
-        console.log("completeResponse is now");
-        console.log(JSON.stringify(this.completeResponse));
-        console.log("-----------------");
-        console.log("\n\n\n\n");
       }
     }
   }
@@ -154,7 +145,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           await updateLectureTitle({ lectureId, title });
         }
         handler.endStream();
-        queueSummaries(5, lectureId, slideNumber);
+        queueSummaries(lectureId, slideNumber);
       } catch (error) {
         console.error("Error processing stream:", error);
       }

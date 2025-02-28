@@ -1,9 +1,11 @@
 import { getNumSlides } from "~/models/lecture.server";
 import type { Slide } from "~/models/lecture.server";
 import {
-  createSlideSummaryQueue,
+  //initializeSlideSummaryQueue,
+  ensureSummaryQueueExists,
   slideSummaryQueueName,
-} from "~/queues/backgroundSlideSummary";
+  numToQueue,
+} from "~/queues/backgroundSlideSummary.server";
 import { FlowProducer } from "bullmq";
 import type { FlowJob } from "bullmq";
 
@@ -13,48 +15,69 @@ function createJobId(
 ) {
   return `${lectureId}-${slideNumber}`;
 }
+
+slideSummaryQueueName;
+
+function createSlideFlowJob({
+  queueName,
+  lectureId,
+  slideNumber,
+  children,
+}: {
+  queueName: string;
+  lectureId: Slide["lectureId"];
+  slideNumber: Slide["slideNumber"];
+  children?: FlowJob[];
+}): FlowJob {
+  return {
+    name: queueName,
+    data: { lectureId, slideNumber },
+    queueName: queueName,
+    opts: {
+      failParentOnFailure: true,
+      jobId: createJobId(lectureId, slideNumber),
+    },
+    children,
+  };
+}
+
 export async function queueSummaries(
-  numToQueue: number,
   lectureId: Slide["lectureId"],
   slideNumber: Slide["slideNumber"]
 ) {
+  console.log("RUNNING_ABC");
   const numSlides = await getNumSlides(lectureId);
   if (!numSlides) {
     throw new Error("Number of slides not found.");
   }
 
-  if (numToQueue < 1 || slideNumber >= numSlides) {
+  if (slideNumber >= numSlides) {
     return;
   }
   console.log("SSS_1");
 
   // Initialize the slide summary queue if doesn't already exist (stored globally)
-  createSlideSummaryQueue();
+  ensureSummaryQueueExists();
   console.log("SSS_2");
-
-  const opts = { failParentOnFailure: true };
 
   const flowProducer = new FlowProducer();
   console.log("SSS_3");
-  let job = {
-    name: slideSummaryQueueName,
-    jobId: createJobId(lectureId, slideNumber + 1),
-    data: { lectureId, slideNumber: slideNumber + 1 },
+
+  let job = createSlideFlowJob({
     queueName: slideSummaryQueueName,
-    opts,
-  };
-  console.log("SSS_4");
+    lectureId: lectureId,
+    slideNumber: slideNumber + 1,
+  });
 
   for (let i = 2; i < numToQueue && slideNumber + i <= numSlides; i++) {
     const newSlideNumber = slideNumber + i;
-    const newJob = {
-      name: slideSummaryQueueName,
-      data: { lectureId, slideNumber: newSlideNumber },
+    const newJob = createSlideFlowJob({
       queueName: slideSummaryQueueName,
-      opts,
+      lectureId,
+      slideNumber: newSlideNumber,
       children: [job],
-      jobId: createJobId(lectureId, newSlideNumber), // job ID serves to ensures that duplicate jobs aren't created
-    };
+    });
+
     job = newJob;
   }
 

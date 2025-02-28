@@ -8,15 +8,18 @@ import {
 } from "~/models/lecture.server";
 import { openaiClient, buildSummaryQuery } from "~/utils/openai.server";
 import type { Slide } from "~/models/lecture.server";
+import { singleton } from "~/singleton.server";
 
-type QueueData = {
+export type QueueData = {
   lectureId: Slide["lectureId"];
   slideNumber: Slide["slideNumber"];
 };
+
 export const slideSummaryQueueName = "slideSummaryGenerator";
 
-export const createSlideSummaryQueue = () => {
-  return Queue<QueueData>(slideSummaryQueueName, async (job) => {
+// Create the queue processing function separately from the singleton
+const createQueueProcessor = () => {
+  Queue<QueueData>(slideSummaryQueueName, async (job) => {
     const { lectureId, slideNumber } = job.data;
     try {
       console.log(`\n\nFOR ${lectureId} and ${slideNumber}`);
@@ -58,8 +61,6 @@ export const createSlideSummaryQueue = () => {
       await updateSlideSummary({
         identifier: { lectureId, slideNumber },
         summary,
-        // seeting safe to true ensures that no slide summary yet before updating
-        // this ensures that the final content of a stream reponse from user navigation is not overritten
         safe: true,
       });
 
@@ -83,3 +84,8 @@ export const createSlideSummaryQueue = () => {
     }
   });
 };
+
+export const ensureSummaryQueueExists = () =>
+  singleton("slide_summary_queue", createQueueProcessor);
+
+export const numToQueue = 5;

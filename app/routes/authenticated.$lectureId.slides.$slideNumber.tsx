@@ -56,14 +56,12 @@ interface SummaryDisplayerProps {
   content: string[];
   onSubmitQuery: (query: string) => void;
   isStreaming: boolean;
-  isSubmitting: boolean;
 }
 
 function SummaryDisplayer({
   content,
   onSubmitQuery,
   isStreaming,
-  isSubmitting,
 }: SummaryDisplayerProps) {
   const [query, setQuery] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
@@ -80,12 +78,13 @@ function SummaryDisplayer({
       }
     }, 0);
   };
-
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = 0;
+    if (contentRef.current && isStreaming) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
-  }, []);
+  }, [content, isStreaming]);
+
+  console.log(`isStreaming: ${isStreaming}`);
 
   return (
     <div className="h-full flex flex-col relative">
@@ -116,9 +115,9 @@ function SummaryDisplayer({
           <button
             type="submit"
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-            disabled={isSubmitting || isStreaming}
+            disabled={isStreaming}
           >
-            {isSubmitting || isStreaming ? "Waiting..." : "Ask"}
+            {isStreaming ? "Waiting..." : "Ask"}
           </button>
         </form>
       </div>
@@ -175,7 +174,7 @@ function SummaryDisplayerManager({
     } else if (generateStatus === StatusEnum.READY) {
       setDisplayContent(content);
       fetcher.submit(
-        { numToQueue: 5, lectureId, slideNumber },
+        { lectureId, slideNumber },
         {
           method: "post",
           action: queueSummariesRoute,
@@ -226,7 +225,6 @@ function SummaryDisplayerManager({
       content={displayContent}
       onSubmitQuery={handleQuerySubmit}
       isStreaming={isStreaming}
-      isSubmitting={fetcher.state === "submitting"}
     />
   );
 }
