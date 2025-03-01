@@ -56,21 +56,39 @@ interface SummaryDisplayerProps {
   content: string[];
   onSubmitQuery: (query: string) => void;
   isStreaming: boolean;
+  summaryErrorMessage: string | null;
+  conversationErrorMessage: string | null;
+  showSummaryErrorModal: boolean;
+  showConversationErrorModal: boolean;
+  dismissSummaryError: () => void;
+  dismissConversationError: () => void;
 }
 
 function SummaryDisplayer({
   content,
   onSubmitQuery,
   isStreaming,
+  summaryErrorMessage,
+  conversationErrorMessage,
+  showSummaryErrorModal,
+  showConversationErrorModal,
+  dismissSummaryError,
+  dismissConversationError,
 }: SummaryDisplayerProps) {
   const [query, setQuery] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query.trim()) return;
-    onSubmitQuery(query);
-    setQuery("");
+    if (!query.trim() || summaryErrorMessage) return;
+
+    const currentQuery = query;
+    onSubmitQuery(currentQuery);
+
+    // Don't clear the input if there's a conversation error
+    if (!conversationErrorMessage) {
+      setQuery("");
+    }
 
     setTimeout(() => {
       if (contentRef.current) {
@@ -78,16 +96,53 @@ function SummaryDisplayer({
       }
     }, 0);
   };
+
   useEffect(() => {
     if (contentRef.current && isStreaming) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }
   }, [content, isStreaming]);
 
-  console.log(`isStreaming: ${isStreaming}`);
+  console.log(
+    `isStreaming: ${isStreaming}, summaryErrorMessage: ${summaryErrorMessage !== null}, conversationErrorMessage: ${conversationErrorMessage !== null}`
+  );
 
   return (
     <div className="h-full flex flex-col relative">
+      {/* Summary Error Modal */}
+      {showSummaryErrorModal && summaryErrorMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold text-red-600 mb-2">
+              Summary Error
+            </h3>
+            <p className="mb-4">{summaryErrorMessage}</p>
+            <button
+              onClick={dismissSummaryError}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Conversation Error Modal */}
+      {showConversationErrorModal && conversationErrorMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Error</h3>
+            <p className="mb-4">{conversationErrorMessage}</p>
+            <button
+              onClick={dismissConversationError}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <div ref={contentRef} className="flex-1 overflow-y-auto pb-20">
         {content && content.length > 0 ? (
           content.map((content, index) => (
@@ -111,13 +166,21 @@ function SummaryDisplayer({
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 p-2 border rounded-lg focus:outline-none"
             placeholder="Ask a question about this slide..."
+            disabled={summaryErrorMessage !== null && content.length <= 1}
           />
           <button
             type="submit"
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-            disabled={isStreaming}
+            disabled={
+              isStreaming ||
+              (summaryErrorMessage !== null && content.length <= 1)
+            }
           >
-            {isStreaming ? "Waiting..." : "Ask"}
+            {isStreaming
+              ? "Waiting..."
+              : summaryErrorMessage !== null && content.length <= 1
+                ? "Unavailable"
+                : "Ask"}
           </button>
         </form>
       </div>
@@ -134,7 +197,22 @@ function SummaryDisplayerManager({
 }: SummaryDisplayerManagerProps) {
   const [displayContent, setDisplayContent] = useState<string[]>(content || []);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [summaryErrorMessage, setSummaryErrorMessage] = useState<string | null>(
+    null
+  );
+  const [conversationErrorMessage, setConversationErrorMessage] = useState<
+    string | null
+  >(null);
+  // Add state for modal visibility
+  const [showSummaryErrorModal, setShowSummaryErrorModal] =
+    useState<boolean>(false);
+  const [showConversationErrorModal, setShowConversationErrorModal] =
+    useState<boolean>(false);
   const fetcher = useSlideFetcher(lectureId, slideId);
+
+  // Functions to dismiss error modals (now only hide the modals)
+  const dismissSummaryError = () => setShowSummaryErrorModal(false);
+  const dismissConversationError = () => setShowConversationErrorModal(false);
 
   useEffect(() => {
     let sse: EventSource | null = null;
@@ -144,6 +222,8 @@ function SummaryDisplayerManager({
     if (!generateStatus || generateStatus === StatusEnum.PROCESSING) {
       setDisplayContent([]);
       setIsStreaming(true);
+      setSummaryErrorMessage(null);
+
       sse = new EventSource(
         `/api/sse/slideSummary?slideId=${slideId}&lectureId=${lectureId}&slideNumber=${slideNumber}`
       );
@@ -158,11 +238,30 @@ function SummaryDisplayerManager({
         });
       });
 
-      sse.addEventListener("error", () => {
+      sse.addEventListener("error", (event) => {
         if (sse) {
           sse.close();
         }
         setIsStreaming(false);
+
+        try {
+          const errorData = JSON.parse((event as MessageEvent).data);
+          setSummaryErrorMessage(errorData.message || "Unknown error occurred");
+          setShowSummaryErrorModal(true);
+          // Display an error message instead of clearing the content
+          setDisplayContent([
+            "Summary generation failed. Please refresh and try again.",
+          ]);
+        } catch (error) {
+          setSummaryErrorMessage(
+            "Error generating slide summary. Please refresh and try again."
+          );
+          setShowSummaryErrorModal(true);
+          // Display an error message instead of clearing the content
+          setDisplayContent([
+            "Summary generation failed. Please refresh and try again.",
+          ]);
+        }
       });
 
       sse.addEventListener("end", () => {
@@ -173,6 +272,7 @@ function SummaryDisplayerManager({
       });
     } else if (generateStatus === StatusEnum.READY) {
       setDisplayContent(content);
+      setSummaryErrorMessage(null);
       fetcher.submit(
         { lectureId, slideNumber },
         {
@@ -181,7 +281,13 @@ function SummaryDisplayerManager({
         }
       );
     } else {
-      setDisplayContent([`Generation Failed`]);
+      setSummaryErrorMessage(
+        "Generation failed. Please refresh and try again."
+      );
+      setShowSummaryErrorModal(true);
+      setDisplayContent([
+        "Summary generation failed. Please refresh and try again.",
+      ]);
     }
 
     return () => {
@@ -192,6 +298,12 @@ function SummaryDisplayerManager({
   }, []);
 
   const handleQuerySubmit = (query: string) => {
+    if (summaryErrorMessage !== null) return;
+
+    // Clear any previous conversation error
+    setConversationErrorMessage(null);
+
+    // Store the current query and add placeholders to the display
     setDisplayContent((prev) => [...prev, query, ""]);
     setIsStreaming(true);
 
@@ -208,9 +320,35 @@ function SummaryDisplayerManager({
       });
     });
 
-    sse.addEventListener("error", () => {
+    sse.addEventListener("error", (event) => {
       sse.close();
       setIsStreaming(false);
+
+      try {
+        const errorData = JSON.parse((event as MessageEvent).data);
+        const errorMsg =
+          errorData.message ||
+          "Error processing your question. Please try again.";
+
+        setConversationErrorMessage(errorMsg);
+        setShowConversationErrorModal(true);
+      } catch (error) {
+        setConversationErrorMessage(
+          "Error processing your question. Please try again."
+        );
+        setShowConversationErrorModal(true);
+
+        // Keep the user's question and append an error message
+        setDisplayContent((prev) => {
+          const updatedContent = [...prev];
+          if (updatedContent.length >= 2) {
+            // Replace the empty response with an error message
+            updatedContent[updatedContent.length - 1] =
+              "*Error processing your question. Please try again.*";
+          }
+          return updatedContent;
+        });
+      }
     });
 
     sse.addEventListener("end", () => {
@@ -225,6 +363,12 @@ function SummaryDisplayerManager({
       content={displayContent}
       onSubmitQuery={handleQuerySubmit}
       isStreaming={isStreaming}
+      summaryErrorMessage={summaryErrorMessage}
+      conversationErrorMessage={conversationErrorMessage}
+      showSummaryErrorModal={showSummaryErrorModal}
+      showConversationErrorModal={showConversationErrorModal}
+      dismissSummaryError={dismissSummaryError}
+      dismissConversationError={dismissConversationError}
     />
   );
 }

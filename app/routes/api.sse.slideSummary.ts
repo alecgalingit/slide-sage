@@ -68,6 +68,13 @@ class ResponseHandler {
     }
   }
 
+  sendError(errorMessage: string) {
+    this.send({
+      event: "error",
+      data: JSON.stringify({ message: errorMessage }),
+    });
+  }
+
   endStream() {
     this.send({
       event: "end",
@@ -121,12 +128,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const messages = buildSummaryQuery({ contextSlides, base64Encoding });
 
-  const stream = await openaiClient.chat.completions.create({
-    model: "gpt-4o",
-    messages,
-    stream: true,
-  });
-
   return eventStream(request.signal, function setup(send) {
     const handler = new ResponseHandler(slideId, lectureId, slideNumber, send);
 
@@ -134,6 +135,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // stop streaming to client though when disconnected, which is handled in handlechuck above
     async function processStream() {
       try {
+        const stream = await openaiClient.chat.completions.create({
+          model: "gpt-4o",
+          messages,
+          stream: true,
+        });
         for await (const chunk of stream) {
           handler.handleChunk(chunk);
         }
@@ -148,6 +154,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
         queueSummaries(lectureId, slideNumber);
       } catch (error) {
         console.error("Error processing stream:", error);
+        handler.sendError(
+          "We're receiving a high volume of requests at the moment and are hitting OpenAI rate limits. Please try again later."
+        );
       }
     }
 
