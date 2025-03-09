@@ -1,40 +1,16 @@
-# Welcome to Remix!
+# AI Lecture Slide App
 
-- 📖 [Remix docs](https://remix.run/docs)
+This repository contains the code for an AI-powered lecture slide application that allows students to upload PowerPoint (`.pptx`) or PDF files and learn a lecture at their own pace.
 
-## Development
+## Technologies Used
 
-Run the dev server:
+- **Remix.js**: A full-stack React framework built on Node.js that provides seamless integration between the frontend and backend.
+- **React**: Used for building the user interface, enabling interactive and dynamic elements.
+- **Node.js**: Powers the server-side logic, handling requests and managing data flow.
+- **TypeScript**: Ensures type safety and improves code maintainability.
+- **PostgreSQL**: Stores user accounts, uploaded lecture slides, and AI-generated summaries.
+- **Redis**: Tracks a queue of background tasks, enabling background generation of summaries for slides that users have not yet navigated to.
 
-```shellscript
-npm run dev
-```
+## Project Structure
 
-## Deployment
-
-First, build your app for production:
-
-```sh
-npm run build
-```
-
-Then run the app in production mode:
-
-```sh
-npm start
-```
-
-Now you'll need to pick a host to deploy it to.
-
-### DIY
-
-If you're familiar with deploying Node applications, the built-in Remix app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-- `build/server`
-- `build/client`
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever css framework you prefer. See the [Vite docs on css](https://vitejs.dev/guide/features.html#css) for more information.
+The bulk of the code can be found within the [`app/routes`](./app/routes) directory, where all application routes are defined. Remix.js follows a unique file-based routing convention that does not clearly separate frontend and backend logic. More details on Remix routes can be found in the [official documentation](https://remix.run/docs/en/main/file-conventions/routes)
