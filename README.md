@@ -4,10 +4,10 @@ This repository contains the code for an AI-powered lecture slide web applicatio
 
 ## Technologies Used
 
+- **TypeScript**
 - **Remix.js**: A full-stack React framework built on Node.js that provides seamless integration between the frontend and backend.
-- **React**: Used for building the user interface, enabling interactive and dynamic elements.
-- **Node.js**: Powers the server-side logic, handling requests and managing data flow.
-- **TypeScript**: Ensures type safety and improves code maintainability.
+- **React**
+- **Node.js**
 - **PostgreSQL**: Stores user accounts, uploaded lecture slides, and AI-generated summaries.
 - **Redis**: Tracks a queue of background tasks, enabling background generation of summaries for slides that users have not yet navigated to.
 
