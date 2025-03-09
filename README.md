@@ -9,6 +9,4 @@ This repository contains the code for an AI-powered lecture slide web applicatio
 - **PostgreSQL**: Stores user accounts, uploaded lecture slides, and AI-generated summaries.
 - **Redis**: Tracks a queue of background tasks, enabling background generation of summaries for slides that users have not yet navigated to.
 
-## Project Structure
-
 The bulk of the code can be found within the [`app/routes`](./app/routes) directory, where all application routes are defined using remix file naming conventions explained [here](https://remix.run/docs/en/main/file-conventions/routes).
