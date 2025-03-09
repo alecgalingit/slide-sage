@@ -1,6 +1,6 @@
 # Slide Sage
 
-This repository contains the code for an AI-powered lecture slide application that allows students to upload PowerPoint or PDF files and learn a lecture at their own pace.
+This repository contains the code for an AI-powered lecture slide web application that allows students to upload PowerPoint or PDF files and learn a lecture at their own pace.
 
 ## Technologies Used
 
