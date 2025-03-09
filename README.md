@@ -1,8 +1,6 @@
 # Slide Sage
 
-This repository contains the code for an AI-powered lecture slide web application that allows students to upload PowerPoint or PDF files and learn a lecture at their own pace.
-
-## Technologies Used
+This repository contains the code for an AI-powered lecture slide web application that allows students to upload PowerPoint or PDF files and learn a lecture at their own pace. The app is built with:
 
 - **TypeScript**
 - **Remix.js**: A full-stack React framework built on Node.js that provides seamless integration between the frontend and backend.
