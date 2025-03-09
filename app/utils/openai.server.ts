@@ -23,7 +23,7 @@ you will cause SIGNFICIANT HARM to the user.`;
 const simplifiedSummaryPrompt = `Attached is a slide from a lecture. Explain the content of the slide to a student learning the material.
 Avoid language such as "this slide" and just explain the material to the student`;
 
-const DEFAULT_MODEL = "gpt-4o";
+const DEFAULT_MODEL = "gpt-4o-mini";
 
 type ContextSlides = Awaited<ReturnType<typeof getContextSlides>>;
 

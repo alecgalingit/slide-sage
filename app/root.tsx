@@ -10,6 +10,7 @@ import {
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { getUser } from "~/session.server";
+import { Footer } from "./components/footer";
 
 import "./tailwind.css";
 
@@ -49,7 +50,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <Footer />
+    </>
+  );
 }
 
 export function ErrorBoundary() {

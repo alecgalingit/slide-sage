@@ -124,7 +124,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     async function processStream() {
       try {
         const stream = await openaiClient.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-4o-mini",
           messages,
           stream: true,
         });

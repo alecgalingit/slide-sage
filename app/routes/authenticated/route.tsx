@@ -31,7 +31,7 @@ export default function AuthenticatedPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen bg-white">
       <TopBar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -39,7 +39,7 @@ export default function AuthenticatedPage() {
           isExpanded={isSidebarExpanded}
           onToggle={handleSidebarToggle}
         />
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-5 overflow-auto bg-slate-50">
           <Outlet />
         </main>
       </div>

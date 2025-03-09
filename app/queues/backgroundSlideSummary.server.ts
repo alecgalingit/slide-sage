@@ -25,25 +25,21 @@ const createQueueProcessor = () => {
       console.log(`\n\nFOR ${lectureId} and ${slideNumber}`);
       console.log("HERE_1");
       const slide = await getSlideFromLecture({ lectureId, slideNumber });
-      console.log("HERE_2");
       if (!slide) {
         throw new Error("Slide not found.");
       }
-      console.log("HERE_3");
 
       if (slide.content && slide.content.length > 0) {
         return;
       }
-      console.log("HERE_4");
 
       const base64Encoding = slide.base64;
-      console.log("HERE_5");
       const contextSlides = await getContextSlides(lectureId, slideNumber);
       console.log("HERE_6");
       const messages = buildSummaryQuery({ contextSlides, base64Encoding });
       console.log("HERE_7");
       const completion = await openaiClient.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages,
         stream: false,
       });

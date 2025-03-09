@@ -3,12 +3,8 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-//import rehypeMathjax from "rehype-mathjax";
 import { ReactElement } from "react";
 import "katex/dist/katex.min.css";
-// import pkg from "better-react-mathjax";
-
-// const { MathJaxContext, MathJax } = pkg;
 
 const theme = {
   fonts: {
@@ -220,7 +216,6 @@ export function RenderedMarkdown({
 }: RenderedMarkdownProps): ReactElement {
   const remarkPlugins = [remarkGfm, remarkMath];
   const rehypePlugins = [rehypeKatex];
-  //const rehypePlugins = [rehypeMathjax];
 
   return (
     <StyledMarkdown fontSize={fontSize}>

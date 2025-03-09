@@ -1,3 +1,5 @@
+import type React from "react";
+
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import {
@@ -111,15 +113,17 @@ function SummaryDisplayer({
     <div className="h-full flex flex-col relative">
       {/* Summary Error Modal */}
       {showSummaryErrorModal && summaryErrorMessage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-lg font-semibold text-red-600 mb-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-3">
               Summary Error
             </h3>
-            <p className="mb-4">{summaryErrorMessage}</p>
+            <p className="mb-5 text-gray-700 dark:text-gray-300">
+              {summaryErrorMessage}
+            </p>
             <button
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
               onClick={dismissSummaryError}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Close
             </button>
@@ -129,13 +133,17 @@ function SummaryDisplayer({
 
       {/* Conversation Error Modal */}
       {showConversationErrorModal && conversationErrorMessage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-lg font-semibold text-red-600 mb-2">Error</h3>
-            <p className="mb-4">{conversationErrorMessage}</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-3">
+              Error
+            </h3>
+            <p className="mb-5 text-gray-700 dark:text-gray-300">
+              {conversationErrorMessage}
+            </p>
             <button
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
               onClick={dismissConversationError}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Close
             </button>
@@ -143,34 +151,53 @@ function SummaryDisplayer({
         </div>
       )}
 
-      <div ref={contentRef} className="flex-1 overflow-y-auto pb-20">
+      <div
+        ref={contentRef}
+        className="flex-1 overflow-y-auto pb-20 px-1 scroll-smooth"
+      >
         {content && content.length > 0 ? (
           content.map((content, index) => (
             <div
               key={index}
-              className={`p-2 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+              className={`p-4 rounded-lg my-2 ${
+                index % 2 === 0
+                  ? "bg-gray-50 dark:bg-gray-800/50"
+                  : index % 4 === 1
+                    ? "bg-primary/5 dark:bg-primary/10 border border-primary/10 dark:border-primary/20"
+                    : "bg-white dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800"
+              }`}
             >
               <RenderedMarkdown source={content} />
             </div>
           ))
         ) : (
-          <p className="p-2">Loading slide content...</p>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center p-6">
+              <div className="animate-pulse mb-3">
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-32 mx-auto mb-2"></div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-24 mx-auto"></div>
+              </div>
+              <p className="text-gray-500 dark:text-gray-400">
+                Loading slide content...
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-300 bg-white">
-        <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 backdrop-blur-sm bg-opacity-90 dark:bg-opacity-90">
+        <form onSubmit={handleSubmit} className="flex items-center space-x-3">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 p-2 border rounded-lg focus:outline-none"
+            className="flex-1 p-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
             placeholder="Ask a question about this slide..."
             disabled={summaryErrorMessage !== null && content.length <= 1}
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+            className="px-5 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
             disabled={
               isStreaming ||
               (summaryErrorMessage !== null && content.length <= 1)
@@ -384,18 +411,20 @@ export default function SlidePage() {
   const { numSlides, lectureId } = useOutletContext<OutletContext>();
   const location = useLocation();
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+    <div className="w-full h-full flex flex-col p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="flex-1 flex flex-col md:flex-row gap-8 min-h-0">
         <div className="w-full md:w-1/2 flex items-start">
-          <img
-            src={`data:image/png;base64, ${imageData}`}
-            alt={`Slide ${slideNumber}`}
-            className="w-full h-auto rounded-lg"
-          />
+          <div className="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-800">
+            <img
+              src={`data:image/png;base64, ${imageData}`}
+              alt={`Slide ${slideNumber}`}
+              className="w-full h-auto"
+            />
+          </div>
         </div>
 
         <div className="w-full md:w-1/2 flex flex-col min-h-0">
-          <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden">
+          <div className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800">
             <SummaryDisplayerManager
               key={`${slideId}-${lectureId}`}
               slideId={slideId}
@@ -408,9 +437,10 @@ export default function SlidePage() {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-lg font-medium">
-          Slide {slideNumber} of {numSlides}
+      <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 py-3 border-t border-gray-200 dark:border-gray-800">
+        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          Slide <span className="font-bold">{slideNumber}</span> of{" "}
+          <span className="font-bold">{numSlides}</span>
         </p>
         <div className="flex items-center space-x-4">
           {slideNumber > 1 && (
@@ -420,7 +450,21 @@ export default function SlidePage() {
                 search: location.search,
               }}
             >
-              <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+              <button className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-chevron-left"
+                >
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
                 Previous
               </button>
             </Link>
@@ -433,8 +477,22 @@ export default function SlidePage() {
               }}
               preventScrollReset
             >
-              <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+              <button className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary flex items-center gap-2">
                 Next
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-chevron-right"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
               </button>
             </Link>
           )}
