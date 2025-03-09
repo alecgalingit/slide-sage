@@ -47,13 +47,11 @@ interface StyledMarkdownProps {
 }
 
 const StyledMarkdown = styled.div<StyledMarkdownProps>`
-  // Base typography settings
   font-family: ${theme.fonts.body};
   font-size: ${(props) => theme.fontSizes[props.fontSize || "md"]};
   line-height: 1.6;
   color: ${theme.colors.text};
 
-  // Heading styles - implementing hierarchical typography
   h1,
   h2,
   h3,
@@ -80,7 +78,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     font-size: ${theme.fontSizes["2xl"]};
   }
 
-  // Paragraph styles with improved spacing
   p {
     margin: ${theme.spacing.md} 0;
     word-break: break-word;
@@ -94,7 +91,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     }
   }
 
-  // Enhanced link styling
   a {
     color: ${theme.colors.link};
     text-decoration: none;
@@ -104,7 +100,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     }
   }
 
-  // Enhanced list styling with visible bullets
   ul,
   ol {
     margin: ${theme.spacing.md} 0;
@@ -147,7 +142,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     display: list-item;
   }
 
-  // Blockquote styling
   blockquote {
     margin: ${theme.spacing.md} 0;
     padding-left: ${theme.spacing.lg};
@@ -155,7 +149,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     font-style: italic;
   }
 
-  // Code block styling
   pre,
   code {
     font-family: "Monaco", "Consolas", monospace;
@@ -177,7 +170,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     padding: 2px ${theme.spacing.xs};
   }
 
-  // Table styling
   table {
     width: 100%;
     margin: ${theme.spacing.md} 0;
