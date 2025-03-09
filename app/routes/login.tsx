@@ -94,7 +94,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
       <header className="container mx-auto flex h-20 items-center justify-between px-4 md:px-8">
         <Link to="/" className="flex items-center gap-2">
           <div className="relative">
@@ -111,10 +110,7 @@ export default function LoginPage() {
           </Link>
         </nav>
       </header>
-
-      {/* Main content */}
       <main className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        {/* Decorative elements */}
         <div className="absolute top-0 left-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl -z-10"></div>
         <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-primary/5 blur-3xl -z-10"></div>
 

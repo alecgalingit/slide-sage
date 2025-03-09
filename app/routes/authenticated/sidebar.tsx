@@ -80,9 +80,7 @@ const Sidebar = ({ lectures, isExpanded, onToggle }: SidebarProps) => {
           </nav>
         </div>
       ) : (
-        <div className="flex flex-col items-center pt-6">
-          {/* Removed the lecture icon when sidebar is collapsed */}
-        </div>
+        <div className="flex flex-col items-center pt-6"></div>
       )}
     </aside>
   );

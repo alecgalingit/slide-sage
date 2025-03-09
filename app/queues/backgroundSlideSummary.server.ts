@@ -17,13 +17,11 @@ export type QueueData = {
 
 export const slideSummaryQueueName = "slideSummaryGenerator";
 
-// Create the queue processing function separately from the singleton
 const createQueueProcessor = () => {
   Queue<QueueData>(slideSummaryQueueName, async (job) => {
     const { lectureId, slideNumber } = job.data;
     try {
-      console.log(`\n\nFOR ${lectureId} and ${slideNumber}`);
-      console.log("HERE_1");
+      console.log(`\n\nQUEUING FOR ${lectureId} and ${slideNumber}`);
       const slide = await getSlideFromLecture({ lectureId, slideNumber });
       if (!slide) {
         throw new Error("Slide not found.");
@@ -35,37 +33,23 @@ const createQueueProcessor = () => {
 
       const base64Encoding = slide.base64;
       const contextSlides = await getContextSlides(lectureId, slideNumber);
-      console.log("HERE_6");
       const messages = buildSummaryQuery({ contextSlides, base64Encoding });
-      console.log("HERE_7");
       const completion = await openaiClient.chat.completions.create({
         model: "gpt-4o-mini",
         messages,
         stream: false,
       });
-      console.log("HERE_8");
 
       const summary = completion.choices[0]?.message?.content;
       if (!summary) {
         throw new Error("No summary generated");
       }
-      console.log("HERE_9");
-      console.log(
-        `when retrieved, slide content: ${slide.content.length} and generate status: ${slide.generateStatus}`
-      );
 
       await updateSlideSummary({
         identifier: { lectureId, slideNumber },
         summary,
         safe: true,
       });
-
-      const failedSlide = await getSlideFromLecture({ lectureId, slideNumber });
-      if (failedSlide) {
-        console.log(
-          `After failure - generate status: ${failedSlide.generateStatus}`
-        );
-      }
     } catch (error) {
       console.error(
         `Failed to generate summary for slide ${slideNumber} of lecture ${lectureId}:`,

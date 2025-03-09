@@ -5,7 +5,6 @@ import type { PrismaClient } from "@prisma/client/extension";
 import { prisma } from "~/db.server";
 
 export type { Lecture, Slide, Status } from "@prisma/client";
-// export status with normal export as well so can access values
 export { Status as StatusEnum } from "@prisma/client";
 
 export async function getLectureById(id: Lecture["id"]) {
@@ -62,19 +61,6 @@ export async function createSlide(
     },
   });
 }
-// export async function getSlideFromLecture(
-//   lectureId: Slide["lectureId"],
-//   slideNum: Slide["slideNumber"],
-//   userId: Slide["userId"]
-// ) {
-//   return prisma.slide.findFirst({
-//     where: {
-//       lectureId,
-//       slideNumber: slideNum,
-//       userId,
-//     },
-//   });
-// }
 
 export async function getSlideFromLecture({
   lectureId,
@@ -234,13 +220,11 @@ export async function appendSlideConversation(
 ) {
   const contentToAdd = [query, response];
 
-  // Validate input length
   if (contentToAdd.length !== 2) {
     throw new Error("Content must be exactly two strings");
   }
 
   try {
-    // Get existing content
     const slide = await tx.slide.findUnique({
       where: { id: slideId },
       select: { content: true },
@@ -250,10 +234,8 @@ export async function appendSlideConversation(
       throw new Error(`Slide with ID ${slideId} not found.`);
     }
 
-    // Append new content
     const updatedContent = [...slide.content, ...contentToAdd];
 
-    // Update the slide
     await tx.slide.update({
       where: { id: slideId },
       data: {

@@ -51,7 +51,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     let pdfBuffer: Buffer;
 
-    // Check file extension to determine if conversion is needed
     const fileExtension = file.name.toLowerCase().split(".").pop();
 
     if (fileExtension === "pdf") {
@@ -96,7 +95,6 @@ export default function PDFUploadPage() {
 
   const isSubmitting = fetcher.state === "submitting";
 
-  // Simulate progress for better UX
   useEffect(() => {
     if (isSubmitting) {
       setProgress(0);
@@ -117,7 +115,6 @@ export default function PDFUploadPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
-      // Auto-submit the form when a file is selected
       const form = document.getElementById("upload-form") as HTMLFormElement;
       if (form) {
         form.requestSubmit();
@@ -148,7 +145,6 @@ export default function PDFUploadPage() {
         dataTransfer.items.add(e.dataTransfer.files[0]);
         input.files = dataTransfer.files;
 
-        // Auto-submit the form when a file is dropped
         const form = document.getElementById("upload-form") as HTMLFormElement;
         if (form) {
           form.requestSubmit();

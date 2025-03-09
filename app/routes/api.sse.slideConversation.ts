@@ -33,7 +33,6 @@ class ResponseHandler {
     if (content) {
       this.completeResponse += content;
       if (this.isClientConnected) {
-        // stringify is used to escape characters such as newlines that cause weird SSE behaviour; event.data is parsed in client with JSON.parse
         this.send({ data: JSON.stringify(content) });
       }
     }
@@ -44,7 +43,6 @@ class ResponseHandler {
   }
 
   async saveToDatabase() {
-    // only save to database if client does not leave page before streaming finishes
     if (this.isClientConnected) {
       try {
         await appendSlideConversation(
@@ -119,8 +117,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return eventStream(request.signal, function setup(send) {
     const handler = new ResponseHandler(slideId, query, send);
 
-    // keep save to databse in spite of disconnected, since want content to show up if user comes back later after immediately leaving
-    // stop streaming to client though when disconnected, which is handled in handlechuck above
     async function processStream() {
       try {
         const stream = await openaiClient.chat.completions.create({

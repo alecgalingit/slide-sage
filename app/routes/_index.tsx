@@ -111,7 +111,7 @@ export default function Index() {
           <div className="bg-background/50 h-auto p-2">
             <img
               src="/public/demo.png"
-              alt="Slide Sage demonstration showing a lecture on scaling laws"
+              alt="Slide Sage demo"
               className="w-full h-auto object-contain max-h-96"
             />
           </div>

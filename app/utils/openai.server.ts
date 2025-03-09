@@ -33,7 +33,6 @@ function buildSlideQuery(
 ): OpenAI.Chat.ChatCompletionUserMessageParam {
   const content: Array<OpenAI.Chat.ChatCompletionContentPart> = [];
 
-  // Only add system prompt if it's provided
   if (summaryPrompt) {
     content.push({
       type: "text",
@@ -41,7 +40,6 @@ function buildSlideQuery(
     });
   }
 
-  // Always add the image
   content.push({
     type: "image_url",
     image_url: {

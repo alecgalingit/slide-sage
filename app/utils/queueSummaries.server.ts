@@ -56,7 +56,6 @@ export async function queueSummaries(
   }
   console.log("SSS_1");
 
-  // Initialize the slide summary queue if doesn't already exist (stored globally)
   ensureSummaryQueueExists();
   console.log("SSS_2");
 

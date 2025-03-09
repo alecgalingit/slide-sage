@@ -111,7 +111,6 @@ function SummaryDisplayer({
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* Summary Error Modal */}
       {showSummaryErrorModal && summaryErrorMessage && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
@@ -131,7 +130,6 @@ function SummaryDisplayer({
         </div>
       )}
 
-      {/* Conversation Error Modal */}
       {showConversationErrorModal && conversationErrorMessage && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
@@ -230,22 +228,17 @@ function SummaryDisplayerManager({
   const [conversationErrorMessage, setConversationErrorMessage] = useState<
     string | null
   >(null);
-  // Add state for modal visibility
   const [showSummaryErrorModal, setShowSummaryErrorModal] =
     useState<boolean>(false);
   const [showConversationErrorModal, setShowConversationErrorModal] =
     useState<boolean>(false);
   const fetcher = useSlideFetcher(lectureId, slideId);
-
-  // Functions to dismiss error modals (now only hide the modals)
   const dismissSummaryError = () => setShowSummaryErrorModal(false);
   const dismissConversationError = () => setShowConversationErrorModal(false);
 
   useEffect(() => {
     let sse: EventSource | null = null;
 
-    // If slide not generated yet, or was in the process of generating in background, start or restart generation process
-    // Background task configured to give priority to a streaming response that replaces it
     if (!generateStatus || generateStatus === StatusEnum.PROCESSING) {
       setDisplayContent([]);
       setIsStreaming(true);
@@ -275,7 +268,6 @@ function SummaryDisplayerManager({
           const errorData = JSON.parse((event as MessageEvent).data);
           setSummaryErrorMessage(errorData.message || "Unknown error occurred");
           setShowSummaryErrorModal(true);
-          // Display an error message instead of clearing the content
           setDisplayContent([
             "Summary generation failed. Please refresh and try again.",
           ]);
@@ -284,7 +276,6 @@ function SummaryDisplayerManager({
             "Error generating slide summary. Please refresh and try again."
           );
           setShowSummaryErrorModal(true);
-          // Display an error message instead of clearing the content
           setDisplayContent([
             "Summary generation failed. Please refresh and try again.",
           ]);
@@ -327,10 +318,8 @@ function SummaryDisplayerManager({
   const handleQuerySubmit = (query: string) => {
     if (summaryErrorMessage !== null) return;
 
-    // Clear any previous conversation error
     setConversationErrorMessage(null);
 
-    // Store the current query and add placeholders to the display
     setDisplayContent((prev) => [...prev, query, ""]);
     setIsStreaming(true);
 
@@ -365,11 +354,9 @@ function SummaryDisplayerManager({
         );
         setShowConversationErrorModal(true);
 
-        // Keep the user's question and append an error message
         setDisplayContent((prev) => {
           const updatedContent = [...prev];
           if (updatedContent.length >= 2) {
-            // Replace the empty response with an error message
             updatedContent[updatedContent.length - 1] =
               "*Error processing your question. Please try again.*";
           }
