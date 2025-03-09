@@ -11,4 +11,4 @@ This repository contains the code for an AI-powered lecture slide web applicatio
 
 ## Project Structure
 
-The bulk of the code can be found within the [`app/routes`](./app/routes) directory, where all application routes are defined. Remix.js follows a unique file-based routing convention that does not clearly separate frontend and backend logic. More details on Remix routes can be found in the [official documentation](https://remix.run/docs/en/main/file-conventions/routes)
+The bulk of the code can be found within the [`app/routes`](./app/routes) directory, where all application routes are defined. Remix.js follows a unique file-based routing convention that does not clearly separate frontend and backend logic. More details on Remix routes can be found in this [documentation](https://remix.run/docs/en/main/file-conventions/routes)
