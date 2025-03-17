@@ -9,6 +9,7 @@ import {
 import { openaiClient, buildSummaryQuery } from "~/utils/openai.server";
 import type { Slide } from "~/models/lecture.server";
 import { singleton } from "~/singleton.server";
+import { embedAndUpsert } from "~/utils/pinecone.server";
 
 export type QueueData = {
   lectureId: Slide["lectureId"];
@@ -50,6 +51,7 @@ const createQueueProcessor = () => {
         summary,
         safe: true,
       });
+      await embedAndUpsert(summary, lectureId, slideNumber);
     } catch (error) {
       console.error(
         `Failed to generate summary for slide ${slideNumber} of lecture ${lectureId}:`,

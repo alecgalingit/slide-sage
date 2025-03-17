@@ -447,3 +447,27 @@ export async function getAllSlideBase64s(lectureId: Lecture["id"]) {
     throw error;
   }
 }
+
+export async function getSlidesByNumbers(
+  lectureId: Lecture["id"],
+  slideNumbers: number[]
+) {
+  return await prisma.slide
+    .findMany({
+      where: {
+        lectureId,
+        slideNumber: { in: slideNumbers },
+        content: { isEmpty: false },
+      },
+      select: {
+        content: true,
+        slideNumber: true,
+      },
+    })
+    .then((slides) =>
+      slides.map((slide) => ({
+        summary: slide.content[0],
+        slideNumber: slide.slideNumber,
+      }))
+    );
+}

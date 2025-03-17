@@ -18,12 +18,15 @@ import {
 import type { Slide, Lecture } from "~/models/lecture.server";
 import type { SendFunction } from "~/utils/sse.server";
 import { queueSummaries } from "~/utils/queueSummaries.server";
+import { embedAndUpsert } from "~/utils/pinecone.server";
 
 class ResponseHandler {
   private completeResponse: string;
   private isClientConnected: boolean;
   private send: SendFunction;
   private slideId: Slide["id"];
+  private lectureId: Slide["lectureId"];
+  private slideNumber: Slide["slideNumber"];
 
   constructor(
     slideId: Slide["id"],
@@ -35,6 +38,8 @@ class ResponseHandler {
     this.isClientConnected = true;
     this.send = send;
     this.slideId = slideId;
+    this.lectureId = lectureId;
+    this.slideNumber = slideNumber;
   }
 
   handleChunk(chunk: OpenAI.Chat.Completions.ChatCompletionChunk) {
@@ -58,6 +63,11 @@ class ResponseHandler {
         identifier: { id: this.slideId },
         summary: this.completeResponse,
       });
+      await embedAndUpsert(
+        this.completeResponse,
+        this.lectureId,
+        this.slideNumber
+      );
     } catch (error) {
       console.error("Failed to save to database:", error);
       await updateSlideGenerateStatus({
@@ -146,21 +156,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
           console.log("a chunk");
           handler.handleChunk(chunk);
         }
-        await handler.saveToDatabase();
-        if (slideNumber === 1) {
-          const title = await inferSlideTitle({
-            slideSummary: handler.getCompleteResponse(),
-          });
-          await updateLectureTitle({ lectureId, title });
-        }
         handler.endStream();
-        queueSummaries(lectureId, slideNumber);
       } catch (error) {
         console.error("Error processing stream:", error);
         handler.sendError(
           "We're receiving a high volume of requests at the moment and are hitting OpenAI rate limits. Please try again later."
         );
       }
+      await handler.saveToDatabase();
+      if (slideNumber === 1) {
+        const title = await inferSlideTitle({
+          slideSummary: handler.getCompleteResponse(),
+        });
+        await updateLectureTitle({ lectureId, title });
+      }
+      await queueSummaries(lectureId, slideNumber);
     }
 
     processStream();

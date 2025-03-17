@@ -9,7 +9,7 @@ import {
 import type { Slide } from "~/models/lecture.server";
 import {
   openaiClient,
-  buildQueryWithConversationContextEfficient,
+  buildConversationQueryWithRetrievedContext,
 } from "~/utils/openai.server";
 import type { SendFunction } from "~/utils/sse.server";
 
@@ -50,6 +50,7 @@ class ResponseHandler {
           this.query,
           this.completeResponse
         );
+        console.log(this.completeResponse);
       } catch (error) {
         console.error("Failed to save to database:", error);
         throw error;
@@ -74,8 +75,20 @@ class ResponseHandler {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
+  const lectureId = url.searchParams.get("lectureId");
+  const slideNumber = url.searchParams.get("slideNumber");
   const slideId = url.searchParams.get("slideId");
   const query = url.searchParams.get("query");
+
+  if (!lectureId) {
+    throw new Error("No lectureId provided");
+  }
+
+  if (!slideNumber) {
+    throw new Error("No slide number provided");
+  }
+
+  const slideNum = parseInt(slideNumber);
 
   if (!slideId) {
     throw new Error("No slideId provided");
@@ -94,7 +107,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const base64Encoding = await getBase64FromSlide({ id: slideId });
 
   if (!base64Encoding) {
-    // Return an error event stream if the encoding doesn't exist
     return eventStream(request.signal, function setup(send) {
       send({
         event: "error",
@@ -108,10 +120,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const content = slide.content;
 
-  const messages = buildQueryWithConversationContextEfficient({
+  const messages = await buildConversationQueryWithRetrievedContext({
     base64Encoding,
     content,
     query,
+    lectureId,
+    slideNumber: slideNum,
   });
 
   return eventStream(request.signal, function setup(send) {

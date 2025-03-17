@@ -324,7 +324,7 @@ function SummaryDisplayerManager({
     setIsStreaming(true);
 
     const sse = new EventSource(
-      `/api/sse/slideConversation?slideId=${slideId}&query=${encodeURIComponent(query)}`
+      `/api/sse/slideConversation?lectureId=${lectureId}&slideNumber=${slideNumber}&slideId=${slideId}&query=${encodeURIComponent(query)}`
     );
 
     sse.addEventListener("message", (event) => {

@@ -188,7 +188,6 @@ const StyledMarkdown = styled.div<StyledMarkdownProps>`
     background-color: ${theme.colors.accent}10;
   }
 
-  // Image styling
   img {
     max-width: 100%;
     height: auto;
