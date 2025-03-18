@@ -15,8 +15,6 @@ The bulk of the code can be found within the [`app/routes`](./app/routes) direct
 
 ## Environment Variables
 
-You'll need to set up a few environment variables for the app to work:
-
 - `DATABASE_URL`: The PostgreSQL database connection URL.  
 - `SESSION_SECRET`: A key for encrypting sessions.  
 - `REDIS_URL`: The Redis database connection URL.  
