@@ -102,24 +102,18 @@ class ResponseHandler {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const slideId = url.searchParams.get("slideId");
-  console.log("HERE1");
   if (!slideId) {
     throw new Error("No slideId provided");
   }
-  console.log("HERE2");
   const slide = await getSlideInfo(slideId);
-  console.log("HERE3");
   if (!slide) {
     throw new Error("Slide not found");
   }
-  console.log("HERE4");
   await updateSlideGenerateStatus({
     identifier: { id: slideId },
     status: StatusEnum.PROCESSING,
   });
-  console.log("HERE5");
   const base64Encoding = await getBase64FromSlide({ id: slideId });
-  console.log("HERE6");
   if (!base64Encoding) {
     // Return an error event stream if the encoding doesn't exist
     return eventStream(request.signal, function setup(send) {
@@ -132,14 +126,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return function clear() {};
     });
   }
-  console.log("HERE7");
   const lectureId = slide["lectureId"];
   const slideNumber = slide["slideNumber"];
-  console.log("HERE8");
   const contextSlides = await getContextSlides(lectureId, slideNumber);
-  console.log("HERE9");
   const messages = buildSummaryQuery({ contextSlides, base64Encoding });
-  console.log("HERE10");
   return eventStream(request.signal, function setup(send) {
     const handler = new ResponseHandler(slideId, lectureId, slideNumber, send);
     // keep save to databse in spite of disconnected, since want content to show up if user comes back later after immediately leaving

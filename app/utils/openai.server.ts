@@ -210,9 +210,7 @@ export async function buildConversationQueryWithRetrievedContext({
     lectureId,
     slideNumber
   );
-  console.log("here1");
   console.log(relevantSlides);
-  console.log("here2");
 
   const summaryQuery = buildSlideQuery(base64Encoding, simplifiedSummaryPrompt);
 

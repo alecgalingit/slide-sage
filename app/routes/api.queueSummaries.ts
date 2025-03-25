@@ -12,9 +12,7 @@ export const action: ActionFunction = async ({ request }) => {
       return json({ error: "Invalid input" }, { status: 400 });
     }
 
-    console.log("HEREE_1");
     await queueSummaries(lectureId, slideNumber);
-    console.log("HEREE_2");
 
     return json({ message: "Slide summaries queued successfully" });
   } catch (error) {

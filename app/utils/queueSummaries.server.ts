@@ -45,7 +45,6 @@ export async function queueSummaries(
   lectureId: Slide["lectureId"],
   slideNumber: Slide["slideNumber"]
 ) {
-  console.log("RUNNING_ABC");
   const numSlides = await getNumSlides(lectureId);
   if (!numSlides) {
     throw new Error("Number of slides not found.");
@@ -54,13 +53,10 @@ export async function queueSummaries(
   if (slideNumber >= numSlides) {
     return;
   }
-  console.log("SSS_1");
 
   ensureSummaryQueueExists();
-  console.log("SSS_2");
 
   const flowProducer = new FlowProducer();
-  console.log("SSS_3");
 
   let job = createSlideFlowJob({
     queueName: slideSummaryQueueName,
